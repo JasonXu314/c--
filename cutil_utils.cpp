@@ -3,7 +3,9 @@
 using namespace std;
 
 void printHelpMessage(const vector<string>& argsList) {
-	if (argsList.size() <= 2) {
+	if (argsList.size() < 2) {
+		cout << "Usage: " << argsList[0] << " <command>\nSee " << argsList[0] << " help for more info" << endl;
+	} else if (argsList.size() == 2) {
 		cout << "Commands:\n"
 			 << "help (h)     - display this message\n"
 			 << "compile (c)  - compile a given file and its dependencies\n"
