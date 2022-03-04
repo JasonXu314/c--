@@ -1,4 +1,4 @@
-#include "cutil_utils.h"
+#include "c--_utils.h"
 
 using namespace std;
 
@@ -61,132 +61,112 @@ void printHelpMessage(const vector<string>& argsList) {
 	}
 }
 
-string compileFile(const vector<string>& argsList, const set<string>& flags, bool debug) {
-	if (argsList.size() < 3) {
-		cout << "Usage: " << argsList[0] << " compile [<file> | <file>.cpp | all] [options]\n"
-			 << "Run " << argsList[0] << " help compile for more info" << endl;
-		return "";
-	} else {
-		string inputFile = argsList[2] == "all" ? "all" : normalizeFileName(argsList[2]),
-			   outputFile = inputFile == "all" ? "main" : stripExtension(inputFile), outputFolder = "bin", rawFlags;
+string compileFile(const string& file, const map<Flag, string>& args, bool debug) {
+	string inputFile = file == "all" ? "all" : normalizeFileName(file), outputFile = inputFile == "all" ? "main" : stripExtension(inputFile),
+		   outputFolder = "bin", rawFlags;
 
-		if (debug) {
-			outputFile += "_debug";
-		}
-
-		if (flags.count("--output")) {
-			outputFile = stripWhitespace(findValueOfFlag("--output", argsList));
-		} else if (flags.count("-o")) {
-			outputFile = stripWhitespace(findValueOfFlag("-o", argsList));
-		}
-
-		if (flags.count("--folder")) {
-			outputFolder = stripWhitespace(findValueOfFlag("--folder", argsList));
-		} else if (flags.count("-f")) {
-			outputFolder = stripWhitespace(findValueOfFlag("-f", argsList));
-		}
-
-		if (flags.count("--raw-flags")) {
-			rawFlags = stripWhitespace(collectValuesOfFlag("--raw-flags", argsList, CUTIL_FLAGS));
-		} else if (flags.count("-r")) {
-			rawFlags = stripWhitespace(collectValuesOfFlag("-r", argsList, CUTIL_FLAGS));
-		}
-
-		string cmd = "g++ -Wall -W -pedantic-errors " + string(debug ? "-g" : "-s");
-
-		if (rawFlags.length() != 0) {
-			cmd += " " + rawFlags;
-		}
-
-		if (inputFile == "all") {
-			cmd += " *.cpp";
-		} else {
-			set<string> sources = generateSources(inputFile);
-			string sourcesList;
-
-			for (const string& source : sources) {
-				sourcesList += source + " ";
-			}
-
-			cmd += " " + stripWhitespace(sourcesList);
-		}
-
-		cmd += " -o ./" + outputFolder + "/" + outputFile;
-
-		struct stat dirInfo;
-		if (stat(outputFolder.c_str(), &dirInfo) != 0) {
-			string mkdirCmd = "mkdir " + outputFolder;
-			system(mkdirCmd.c_str());
-		}
-
-		system(cmd.c_str());
-		return "./" + outputFolder + "/" + outputFile;
+	if (debug) {
+		outputFile += "_debug";
 	}
+
+	if (args.count(OUTPUT_FLAG)) {
+		outputFile = args.at(OUTPUT_FLAG);
+	}
+
+	if (args.count(FOLDER_FLAG)) {
+		outputFolder = args.at(FOLDER_FLAG);
+	}
+
+	if (args.count(RAW_FLAGS_FLAG)) {
+		rawFlags = args.at(RAW_FLAGS_FLAG);
+	}
+
+	string cmd = "g++ -Wall -W -pedantic-errors " + string(debug ? "-g" : "-s");
+
+	if (rawFlags.length() != 0) {
+		cmd += " " + rawFlags;
+	}
+
+	if (inputFile == "all") {
+		cmd += " *.cpp";
+	} else {
+		set<string> sources = generateSources(inputFile);
+		string sourcesList;
+
+		for (const string& source : sources) {
+			sourcesList += source + " ";
+		}
+
+		cmd += " " + stripWhitespace(sourcesList);
+	}
+
+	cmd += " -o ./" + outputFolder + "/" + outputFile;
+
+	struct stat dirInfo;
+	if (stat(outputFolder.c_str(), &dirInfo) != 0) {
+		string mkdirCmd = "mkdir " + outputFolder;
+		system(mkdirCmd.c_str());
+	}
+
+	system(cmd.c_str());
+	return "./" + outputFolder + "/" + outputFile;
 }
 
-void compileAndRun(const vector<string>& argsList, const set<string>& flags) {
-	string executablePath = compileFile(argsList, flags), runCmd = executablePath;
+void compileAndRun(const string& file, const map<Flag, string>& args) {
+	string executablePath = compileFile(file, args), runCmd = executablePath;
 
-	if (flags.count("--args")) {
-		runCmd += " " + stripWhitespace(collectValuesOfFlag("--args", argsList, CUTIL_FLAGS));
-	} else if (flags.count("-a")) {
-		runCmd += " " + stripWhitespace(collectValuesOfFlag("-a", argsList, CUTIL_FLAGS));
+	if (args.count(ARGS_FLAG)) {
+		runCmd += " " + args.at(ARGS_FLAG);
 	}
 
 	system(runCmd.c_str());
 }
 
-void compileAndDebug(const vector<string>& argsList, const set<string>& flags) {
+void compileAndDebug(const string& file, const map<Flag, string>& args) {
 	if (system("gdb --version > /dev/null") != 0) {
 		cout << "GDB not found" << endl;
 		exit(1);
 	}
 
-	string executablePath = compileFile(argsList, flags, true), runCmd = "gdb " + executablePath;
+	string executablePath = compileFile(file, args, true), runCmd = "gdb " + executablePath;
 
-	if (flags.count("--gdb-flags")) {
-		runCmd += " " + stripWhitespace(collectValuesOfFlag("--gdb-flags", argsList, CUTIL_FLAGS));
-	} else if (flags.count("-g")) {
-		runCmd += " " + stripWhitespace(collectValuesOfFlag("-g", argsList, CUTIL_FLAGS));
+	if (args.count(GDB_FLAGS_FLAG)) {
+		runCmd += " " + args.at(GDB_FLAGS_FLAG);
 	}
 
 	system(runCmd.c_str());
 }
 
-void compileAndMemcheck(const vector<string>& argsList, const set<string>& flags) {
+void compileAndMemcheck(const string& file, const map<Flag, string>& args) {
 	if (system("valgrind --version > /dev/null") != 0) {
 		cout << "Valgrind not found" << endl;
 		exit(1);
 	}
 
-	string executablePath = compileFile(argsList, flags), runCmd = "valgrind --leak-check=full";
+	string executablePath = compileFile(file, args, true), runCmd = "valgrind --leak-check=full";
 
-	if (flags.count("--valgrind-flags")) {
-		runCmd += " " + stripWhitespace(collectValuesOfFlag("--valgrind-flags", argsList, CUTIL_FLAGS));
-	} else if (flags.count("-v")) {
-		runCmd += " " + stripWhitespace(collectValuesOfFlag("-v", argsList, CUTIL_FLAGS));
+	if (args.count(VALGRIND_FLAGS_FLAG)) {
+		runCmd += " " + args.at(VALGRIND_FLAGS_FLAG);
 	}
 
-	runCmd += executablePath;
+	runCmd += " " + executablePath;
 
-	if (flags.count("--args")) {
-		runCmd += " " + stripWhitespace(collectValuesOfFlag("--args", argsList, CUTIL_FLAGS));
-	} else if (flags.count("-a")) {
-		runCmd += " " + stripWhitespace(collectValuesOfFlag("-a", argsList, CUTIL_FLAGS));
+	if (args.count(ARGS_FLAG)) {
+		runCmd += " " + args.at(ARGS_FLAG);
 	}
 
 	system(runCmd.c_str());
 }
 
-set<string> generateSources(const string& fileName) {
-	fstream in(fileName);
+set<string> generateSources(const string& mainFile) {
+	fstream in(mainFile);
 	set<string> sources, headers;
 	string line;
 	map<string, set<string>> dependencyMap = generateDependencyMap();
 
-	sources.insert(fileName);
+	sources.insert(mainFile);
 
-	for (const string& header : dependencyMap[fileName]) {
+	for (const string& header : dependencyMap[mainFile]) {
 		if (!headers.count(header)) {
 			findHeaders(header, headers);
 		}

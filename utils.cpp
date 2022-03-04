@@ -2,37 +2,61 @@
 
 using namespace std;
 
-string findValueOfFlag(const string& flag, const vector<string>& argsList) {
-	for (size_t i = 0; i < argsList.size(); i++) {
-		if (argsList[i] == flag) {
-			return argsList[i + 1];
-		}
-	}
+map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags, const FlagSet& collatingFlags) {
+	map<Flag, string> out;
+	bool inCollatingFlag = false;
+	string collatingFlagValue;
+	Flag lastFlag;
 
-	return "";
-}
+	for (size_t i = 3; i < argsList.size(); i++) {
+		string arg = argsList[i], flagValue;
+		bool flagValuePair = false;
+		smatch match;
 
-string collectValuesOfFlag(const string& flag, const vector<string>& argsList, const set<string>& reservedFlags) {
-	string result;
-	bool foundFlag = false;
-
-	for (size_t i = 0; i < argsList.size(); i++) {
-		if (argsList[i] == flag) {
-			foundFlag = true;
-			continue;
+		if (regex_match(argsList[i], match, regex("(--?[a-zA-Z\\-]+)=([a-zA-Z0-9_\\-=\\s]+)"))) {
+			flagValuePair = true;
+			arg = match[1];
+			flagValue = match[2];
 		}
 
-		if (foundFlag) {
-			if (reservedFlags.count(argsList[i])) {
-				foundFlag = false;
-				break;
+		if (flags.contains(arg)) {
+			if (inCollatingFlag) {
+				inCollatingFlag = false;
+				out.insert({lastFlag, stripWhitespace(collatingFlagValue)});
+				collatingFlagValue = "";
 			}
 
-			result += argsList[i] + " ";
+			Flag flag = flags.get(arg);
+
+			if (collatingFlags.contains(flag) && !flagValuePair) {
+				inCollatingFlag = true;
+				collatingFlagValue = "";
+			} else {
+				if (out.count(flag)) {
+					throw DuplicateFlagException(flag);
+				} else {
+					if (flagValuePair) {
+						out.insert({flag, flagValue});
+					} else {
+						out.insert({flag, argsList[i + 1]});
+						i++;
+					}
+				}
+			}
+
+			lastFlag = flag;
+		} else if (inCollatingFlag) {
+			collatingFlagValue += arg + " ";
+		} else {
+			throw runtime_error("Unknown flag: " + arg);
 		}
 	}
 
-	return result;
+	if (inCollatingFlag) {
+		out.insert({lastFlag, stripWhitespace(collatingFlagValue)});
+	}
+
+	return out;
 }
 
 string normalizeFileName(const string& fileName) {

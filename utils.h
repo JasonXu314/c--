@@ -5,15 +5,20 @@
 #include <sys/stat.h>
 
 #include <fstream>
+#include <map>
+#include <regex>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "DuplicateFlagException.h"
+#include "Flag.h"
+#include "FlagSet.h"
+
 using namespace std;
 
-string findValueOfFlag(const string& flag, const vector<string>& argsList);
-
-string collectValuesOfFlag(const string& flag, const vector<string>& argsList, const set<string>& reservedFlags);
+map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags, const FlagSet& collatingFlags);
 
 string normalizeFileName(const string& fileName);
 

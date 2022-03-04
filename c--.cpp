@@ -3,8 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "cutil_utils.h"
-#include "utils.h"
+#include "c--_utils.h"
 
 using namespace std;
 
@@ -15,22 +14,12 @@ int main(int argc, char** argv) {
 	}
 
 	vector<string> argsList;
-	set<string> flags;
-	string prevFlag;
 
 	for (int i = 0; i < argc; i++) {
 		argsList.push_back(argv[i]);
-
-		if (argv[i][0] == '-') {
-			if (CUTIL_FLAGS.count(argv[i])) {
-				flags.insert(argv[i]);
-				prevFlag = argv[i];
-			} else if (!isCollatingFlag(prevFlag)) {
-				cout << "Unknown flag: " << argv[i] << endl;
-				return 1;
-			}
-		}
 	}
+
+	map<Flag, string> args = parseArgs(argsList, CMM_FLAGS, COLLATING_FLAGS);
 
 	if (argc < 2) {
 		printHelpMessage(argsList);
@@ -39,16 +28,20 @@ int main(int argc, char** argv) {
 
 		if (cmd == "help" || cmd == "h") {
 			printHelpMessage(argsList);
-		} else if (cmd == "compile" || cmd == "c") {
-			compileFile(argsList, flags);
-		} else if (cmd == "run" || cmd == "r") {
-			compileAndRun(argsList, flags);
-		} else if (cmd == "debug" || cmd == "d") {
-			compileAndDebug(argsList, flags);
-		} else if (cmd == "memcheck" || cmd == "m") {
-			compileAndMemcheck(argsList, flags);
+		} else if (argc < 3) {
+			printHelpMessage({argv[0], "help", cmd});
 		} else {
-			cout << "Unknown command: " << cmd << endl;
+			if (cmd == "compile" || cmd == "c") {
+				compileFile(argsList[2], args);
+			} else if (cmd == "run" || cmd == "r") {
+				compileAndRun(argsList[2], args);
+			} else if (cmd == "debug" || cmd == "d") {
+				compileAndDebug(argsList[2], args);
+			} else if (cmd == "memcheck" || cmd == "m") {
+				compileAndMemcheck(argsList[2], args);
+			} else {
+				cout << "Unknown command: " << cmd << endl;
+			}
 		}
 	}
 
