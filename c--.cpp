@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
 		argsList.push_back(argv[i]);
 	}
 
-	map<Flag, string> args = parseArgs(argsList, CMM_FLAGS, COLLATING_FLAGS);
+	map<Flag, string> args = parseArgs(argsList, CMM_FLAGS);
 
 	if (argc < 2) {
 		printHelpMessage(argsList);

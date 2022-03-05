@@ -2,7 +2,7 @@
 
 using namespace std;
 
-map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags, const FlagSet& collatingFlags) {
+map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags) {
 	map<Flag, string> out;
 	bool inCollatingFlag = false;
 	string collatingFlagValue;
@@ -28,7 +28,7 @@ map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags
 
 			Flag flag = flags.get(arg);
 
-			if (collatingFlags.contains(flag) && !flagValuePair) {
+			if (flag.isCollatingFlag && !flagValuePair) {
 				inCollatingFlag = true;
 				collatingFlagValue = "";
 			} else {

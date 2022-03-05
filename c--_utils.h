@@ -22,11 +22,11 @@ const regex INCLUDE_REGEX("^\\s*#include \"(.*)\""),
 		"int\\s+main\\s*\\(\\s*(int\\s+[a-zA-Z_][a-zA-Z_0-9]*|int\\s+[a-zA-Z_][a-zA-Z_0-9]*,\\s*(char\\*\\*\\s+[a-zA-Z_][a-zA-Z_0-9]*|char\\*"
 		"\\s+[a-zA-Z_][a-zA-Z_0-9]*\\[\\d*\\]))?\\s*\\)");
 
-const Flag OUTPUT_FLAG = {"--output", {"-o"}}, FOLDER_FLAG = {"--folder", {"-f"}}, ARGS_FLAG = {"--args", {"-a"}}, RAW_FLAGS_FLAG = {"--raw-flags", {"-r"}},
-		   VALGRIND_FLAGS_FLAG = {"--valgrind-flags", {"-v"}}, GDB_FLAGS_FLAG = {"--gdb-flags", {"-g"}};
+const Flag OUTPUT_FLAG = {"--output", {"-o"}, false}, FOLDER_FLAG = {"--folder", {"-f"}, false}, ARGS_FLAG = {"--args", {"-a"}, true},
+		   RAW_FLAGS_FLAG = {"--raw-flags", {"-r"}, true}, VALGRIND_FLAGS_FLAG = {"--valgrind-flags", {"-v"}, true},
+		   GDB_FLAGS_FLAG = {"--gdb-flags", {"-g"}, true};
 
-const FlagSet CMM_FLAGS = {OUTPUT_FLAG, FOLDER_FLAG, ARGS_FLAG, RAW_FLAGS_FLAG, VALGRIND_FLAGS_FLAG, GDB_FLAGS_FLAG},
-			  COLLATING_FLAGS = {ARGS_FLAG, RAW_FLAGS_FLAG, VALGRIND_FLAGS_FLAG, GDB_FLAGS_FLAG};
+const FlagSet CMM_FLAGS = {OUTPUT_FLAG, FOLDER_FLAG, ARGS_FLAG, RAW_FLAGS_FLAG, VALGRIND_FLAGS_FLAG, GDB_FLAGS_FLAG};
 
 void printHelpMessage(const vector<string>& argsList);
 
