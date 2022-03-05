@@ -28,19 +28,17 @@ map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags
 
 			Flag flag = flags.get(arg);
 
-			if (flag.isCollatingFlag && !flagValuePair) {
-				inCollatingFlag = true;
-				collatingFlagValue = "";
+			if (out.count(flag)) {
+				throw DuplicateFlagException(flag);
 			} else {
-				if (out.count(flag)) {
-					throw DuplicateFlagException(flag);
+				if (flag.isCollatingFlag && !flagValuePair) {
+					inCollatingFlag = true;
+					collatingFlagValue = "";
+				} else if (flagValuePair) {
+					out.insert({flag, flagValue});
 				} else {
-					if (flagValuePair) {
-						out.insert({flag, flagValue});
-					} else {
-						out.insert({flag, argsList[i + 1]});
-						i++;
-					}
+					out.insert({flag, argsList[i + 1]});
+					i++;
 				}
 			}
 
