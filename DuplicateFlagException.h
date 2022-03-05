@@ -12,10 +12,10 @@ class DuplicateFlagException : public exception {
 public:
 	DuplicateFlagException(const Flag& flag);
 
-	virtual const char* what() const noexcept;
+	virtual const char* what() const noexcept override;
 
 private:
-	Flag _flag;
+	string msg;
 };
 
 #endif

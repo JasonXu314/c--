@@ -1,17 +1,17 @@
 #include "DuplicateFlagException.h"
 
-DuplicateFlagException::DuplicateFlagException(const Flag& flag) : _flag(flag) {}
+using namespace std;
 
-const char* DuplicateFlagException::what() const noexcept {
-	string out = "Duplicate Flags: " + _flag.flag + " (";
+DuplicateFlagException::DuplicateFlagException(const Flag& flag) {
+	msg = "Duplicate flag: " + flag.flag + " (";
 
-	for (auto it = _flag.aliases.begin(); it != _flag.aliases.end(); it++) {
-		if (it == --_flag.aliases.end()) {
-			out += *it + ")";
+	for (auto it = flag.aliases.begin(); it != flag.aliases.end(); it++) {
+		if (it == --flag.aliases.end()) {
+			msg += *it + ")";
 		} else {
-			out += *it + ", ";
+			msg += *it + ", ";
 		}
 	}
-
-	return out.c_str();
 }
+
+const char* DuplicateFlagException::what() const noexcept { return msg.c_str(); }
