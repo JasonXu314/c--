@@ -13,7 +13,7 @@ map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags
 		bool flagValuePair = false;
 		smatch match;
 
-		if (regex_match(argsList[i], match, regex("(--?[a-zA-Z\\-]+)=([a-zA-Z0-9_\\-=\\s]+)"))) {
+		if (regex_match(argsList[i], match, FLAG_REGEX)) {
 			flagValuePair = true;
 			arg = match[1];
 			flagValue = match[2];

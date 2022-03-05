@@ -17,6 +17,11 @@
 
 using namespace std;
 
+const regex INCLUDE_REGEX("^\\s*#include \"(.*)\""),
+	MAIN_REGEX(
+		"int\\s+main\\s*\\(\\s*(int\\s+[a-zA-Z_][a-zA-Z_0-9]*|int\\s+[a-zA-Z_][a-zA-Z_0-9]*,\\s*(char\\*\\*\\s+[a-zA-Z_][a-zA-Z_0-9]*|char\\*"
+		"\\s+[a-zA-Z_][a-zA-Z_0-9]*\\[\\d*\\]))?\\s*\\)");
+
 const Flag OUTPUT_FLAG = {"--output", {"-o"}}, FOLDER_FLAG = {"--folder", {"-f"}}, ARGS_FLAG = {"--args", {"-a"}}, RAW_FLAGS_FLAG = {"--raw-flags", {"-r"}},
 		   VALGRIND_FLAGS_FLAG = {"--valgrind-flags", {"-v"}}, GDB_FLAGS_FLAG = {"--gdb-flags", {"-g"}};
 
@@ -41,8 +46,6 @@ map<string, set<string>> generateDependencyMap();
 void findHeaders(const string& fileName, set<string>& headersVisited);
 
 set<string> findDependents(const string& headerFile, const set<string>& ignore, const map<string, set<string>>& dependencyMap);
-
-bool isCollatingFlag(const string& flag);
 
 string getIncludedFile(const string& line);
 

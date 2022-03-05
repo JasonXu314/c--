@@ -196,9 +196,7 @@ map<string, set<string>> generateDependencyMap() {
 				string line;
 
 				while (getline(in, line)) {
-					regex includeRegex("^\\s*#include \"(.*)\"");
-
-					if (regex_match(line, includeRegex)) {
+					if (regex_match(line, INCLUDE_REGEX)) {
 						string includeFile = getIncludedFile(line);
 
 						out[file].insert(includeFile);
@@ -224,11 +222,8 @@ set<string> findDependents(const string& headerFile, const set<string>& ignore, 
 			continue;
 		} else if (headers.count(headerFile)) {
 			string fileContents = readFile(cppFile);
-			regex mainRegex(
-				"int\\s+main\\s*\\(\\s*(int\\s+[a-zA-Z_][a-zA-Z_0-9]*|int\\s+[a-zA-Z_][a-zA-Z_0-9]*,\\s*(char\\*\\*\\s+[a-zA-Z_][a-zA-Z_0-9]*|char\\*"
-				"\\s+[a-zA-Z_][a-zA-Z_0-9]*\\[\\d*\\]))?\\s*\\)");
 
-			if (!regex_search(fileContents, mainRegex)) {
+			if (!regex_search(fileContents, MAIN_REGEX)) {
 				out.insert(cppFile);
 			}
 		}
@@ -248,9 +243,7 @@ void findHeaders(const string& fileName, set<string>& headersVisited) {
 	string line;
 
 	while (getline(in, line)) {
-		regex includeRegex("^\\s*#include \"(.*)\"");
-
-		if (regex_match(line, includeRegex)) {
+		if (regex_match(line, INCLUDE_REGEX)) {
 			string includeFile = getIncludedFile(line);
 
 			if (!headersVisited.count(includeFile)) {
@@ -260,10 +253,6 @@ void findHeaders(const string& fileName, set<string>& headersVisited) {
 	}
 
 	in.close();
-}
-
-bool isCollatingFlag(const string& flag) {
-	return flag == "--args" || flag == "-a" || flag == "--raw-flags" || flag == "-r" || flag == "--valgrind-flags" || flag == "-v";
 }
 
 string getIncludedFile(const string& line) {

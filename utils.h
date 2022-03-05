@@ -18,6 +18,8 @@
 
 using namespace std;
 
+const regex FLAG_REGEX("(--?[a-zA-Z\\-]+)=([a-zA-Z0-9_\\-=\\s]+)");
+
 map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags, const FlagSet& collatingFlags);
 
 string normalizeFileName(const string& fileName);
