@@ -12,13 +12,12 @@
 #include <string>
 #include <vector>
 
-#include "DuplicateFlagException.h"
 #include "Flag.h"
 #include "FlagSet.h"
 
 using namespace std;
 
-const regex FLAG_REGEX("(--?[a-zA-Z\\-]+)=([a-zA-Z0-9_\\-=\\s]+)");
+const regex FLAG_REGEX("(--?[a-zA-Z\\-]+)=(.+)");
 
 map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags);
 

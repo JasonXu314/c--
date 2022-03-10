@@ -29,7 +29,17 @@ map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags
 			Flag flag = flags.get(arg);
 
 			if (out.count(flag)) {
-				throw DuplicateFlagException(flag);
+				string msg = "Duplicate flag: " + flag.flag + " (";
+
+				for (auto it = flag.aliases.begin(); it != flag.aliases.end(); it++) {
+					if (it == --flag.aliases.end()) {
+						msg += *it + ")";
+					} else {
+						msg += *it + ", ";
+					}
+				}
+
+				throw invalid_argument(msg);
 			} else {
 				if (flag.isCollatingFlag && !flagValuePair) {
 					inCollatingFlag = true;
@@ -46,7 +56,7 @@ map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags
 		} else if (inCollatingFlag) {
 			collatingFlagValue += arg + " ";
 		} else {
-			throw runtime_error("Unknown flag: " + arg);
+			throw invalid_argument("Unknown flag: " + arg);
 		}
 	}
 

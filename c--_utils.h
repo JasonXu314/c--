@@ -37,7 +37,7 @@ void compileAndRun(const string& file, const map<Flag, string>& args);
 
 void compileAndDebug(const string& file, const map<Flag, string>& args);
 
-void compileAndMemcheck(const string& file, const map<Flag, string>& args);
+void compileAndValgrind(const string& file, const map<Flag, string>& args);
 
 set<string> generateSources(const string& mainFile);
 

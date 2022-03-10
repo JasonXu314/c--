@@ -11,7 +11,7 @@ void printHelpMessage(const vector<string>& argsList) {
 			 << "compile (c)  - compile a given file and its dependencies\n"
 			 << "run (r)      - compile the given file and run it\n"
 			 << "debug (d)    - compile the given file and gdb it\n"
-			 << "memcheck (m) - compile the given file and run valgrind" << endl;
+			 << "valgrind (v) - compile the given file and run valgrind" << endl;
 	} else if (argsList.size() == 3) {
 		string helpCmd = argsList[2];
 
@@ -43,8 +43,8 @@ void printHelpMessage(const vector<string>& argsList) {
 				 << "\t--folder (-f) <folder>   - folder to output to (default \"bin\")\n"
 				 << "\t--gdb-flags (-g) <flags> - raw flags to pass to gdb\n"
 				 << "\t--raw-flags (-r) <flags> - raw flags to pass to g++" << endl;
-		} else if (helpCmd == "memcheck" || helpCmd == "m") {
-			cout << "Usage: " << argsList[0] << " [memcheck | m] [<file> | <file>.cpp | all] [options]\n"
+		} else if (helpCmd == "valgrind" || helpCmd == "v") {
+			cout << "Usage: " << argsList[0] << " [valgrind | v] [<file> | <file>.cpp | all] [options]\n"
 				 << "Compiles the given file and runs valgrind on it.\n"
 				 << "If the supplied file is \"all\", the output file will be called \"main\"\n\n"
 				 << "Options:\n"
@@ -54,10 +54,10 @@ void printHelpMessage(const vector<string>& argsList) {
 				 << "\t--raw-flags (-r) <flags>      - raw flags to pass to g++\n"
 				 << "\t--valgrind-flags (-v) <flags> - raw flags to pass to valgrind" << endl;
 		} else {
-			cout << "Unknown command: " << helpCmd << "\nUsage: " << argsList[0] << " help <command>" << endl;
+			throw invalid_argument("Unknown command: " + helpCmd + "\nUsage: " + argsList[0] + " help <command>");
 		}
 	} else {
-		cout << "Usage: " << argsList[0] << " help [command]" << endl;
+		throw invalid_argument("Usage: " + argsList[0] + " help [command]");
 	}
 }
 
@@ -105,10 +105,19 @@ string compileFile(const string& file, const map<Flag, string>& args, bool debug
 	struct stat dirInfo;
 	if (stat(outputFolder.c_str(), &dirInfo) != 0) {
 		string mkdirCmd = "mkdir " + outputFolder;
-		system(mkdirCmd.c_str());
+		bool statusCode = system(mkdirCmd.c_str());
+
+		if (statusCode != 0) {
+			throw runtime_error("Error creating output folder: " + outputFolder);
+		}
 	}
 
-	system(cmd.c_str());
+	bool statusCode = system(cmd.c_str());
+
+	if (statusCode != 0) {
+		throw runtime_error("Error during compilation...");
+	}
+
 	return "./" + outputFolder + "/" + outputFile;
 }
 
@@ -124,8 +133,7 @@ void compileAndRun(const string& file, const map<Flag, string>& args) {
 
 void compileAndDebug(const string& file, const map<Flag, string>& args) {
 	if (system("gdb --version > /dev/null") != 0) {
-		cout << "GDB not found" << endl;
-		exit(1);
+		throw runtime_error("GDB not found");
 	}
 
 	string executablePath = compileFile(file, args, true), runCmd = "gdb " + executablePath;
@@ -137,10 +145,9 @@ void compileAndDebug(const string& file, const map<Flag, string>& args) {
 	system(runCmd.c_str());
 }
 
-void compileAndMemcheck(const string& file, const map<Flag, string>& args) {
+void compileAndValgrind(const string& file, const map<Flag, string>& args) {
 	if (system("valgrind --version > /dev/null") != 0) {
-		cout << "Valgrind not found" << endl;
-		exit(1);
+		throw runtime_error("Valgrind not found");
 	}
 
 	string executablePath = compileFile(file, args, true), runCmd = "valgrind --leak-check=full";

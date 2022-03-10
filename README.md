@@ -6,7 +6,7 @@ Commands
 - compile (c)  - compile a given file and its dependencies
 - run (r)      - compile the given file and run it
 - debug (d)    - compile the given file and gdb it
-- memcheck (m) - compile the given file and run valgrind
+- valgrind (v) - compile the given file and run valgrind
 
 Usage: `c-- <command> <file> [options]`
 
