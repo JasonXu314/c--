@@ -47,6 +47,4 @@ void findHeaders(const string& fileName, set<string>& headersVisited);
 
 set<string> findDependents(const string& headerFile, const set<string>& ignore, const map<string, set<string>>& dependencyMap);
 
-string getIncludedFile(const string& line);
-
 #endif

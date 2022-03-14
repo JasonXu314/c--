@@ -100,7 +100,7 @@ string compileFile(const string& file, const map<Flag, string>& args, bool debug
 		cmd += " " + stripWhitespace(sourcesList);
 	}
 
-	cmd += " -o ./" + outputFolder + "/" + outputFile;
+	cmd += " -o " + outputFolder + "/" + outputFile;
 
 	struct stat dirInfo;
 	if (stat(outputFolder.c_str(), &dirInfo) != 0) {
@@ -115,7 +115,7 @@ string compileFile(const string& file, const map<Flag, string>& args, bool debug
 	bool statusCode = system(cmd.c_str());
 
 	if (statusCode != 0) {
-		throw runtime_error("Error during compilation...");
+		throw runtime_error("Error during compilation...\nCommand: " + cmd);
 	}
 
 	return "./" + outputFolder + "/" + outputFile;
@@ -197,14 +197,17 @@ map<string, set<string>> generateDependencyMap() {
 	vector<string> files = readDir(".");
 
 	for (const string& file : files) {
-		if (regex_match(file, regex("^.*\\.cpp$"))) {
+		smatch foldersMatch;
+
+		if (regex_match(file, foldersMatch, regex("^(.+/)?.*\\.cpp$"))) {
 			if (!out.count(file)) {
 				fstream in(file);
 				string line;
+				smatch includeMatch;
 
 				while (getline(in, line)) {
-					if (regex_match(line, INCLUDE_REGEX)) {
-						string includeFile = getIncludedFile(line);
+					if (regex_match(line, includeMatch, INCLUDE_REGEX)) {
+						string includeFile = foldersMatch[1].str() + includeMatch[1].str();
 
 						out[file].insert(includeFile);
 					}
@@ -248,10 +251,11 @@ void findHeaders(const string& fileName, set<string>& headersVisited) {
 
 	fstream in(fileName);
 	string line;
+	smatch match;
 
 	while (getline(in, line)) {
-		if (regex_match(line, INCLUDE_REGEX)) {
-			string includeFile = getIncludedFile(line);
+		if (regex_match(line, match, INCLUDE_REGEX)) {
+			string includeFile = match[1];
 
 			if (!headersVisited.count(includeFile)) {
 				findHeaders(includeFile, headersVisited);
@@ -260,23 +264,4 @@ void findHeaders(const string& fileName, set<string>& headersVisited) {
 	}
 
 	in.close();
-}
-
-string getIncludedFile(const string& line) {
-	string fileName;
-	bool inFileName = false;
-
-	for (size_t i = 0; i < line.size(); i++) {
-		if (line[i] == '"') {
-			if (inFileName) {
-				break;
-			} else {
-				inFileName = true;
-			}
-		} else if (inFileName) {
-			fileName += line[i];
-		}
-	}
-
-	return fileName;
 }

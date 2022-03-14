@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
 					compileAndRun(argsList[2], args);
 				} else if (cmd == "debug" || cmd == "d") {
 					compileAndDebug(argsList[2], args);
-				} else if (cmd == "valgrind" || cmd == "valgrind") {
+				} else if (cmd == "valgrind" || cmd == "v") {
 					compileAndValgrind(argsList[2], args);
 				} else {
 					cout << "Unknown command: " << cmd << endl;

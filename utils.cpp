@@ -126,6 +126,13 @@ vector<string> readDir(const string& path) {
 				string fileName = entry->d_name;
 
 				out.push_back(fileName);
+			} else if (entry->d_type == DT_DIR && entry->d_name[0] != '.') {
+				string dirName = entry->d_name;
+				vector<string> dirContents = readDir(path + "/" + dirName);
+
+				for (size_t i = 0; i < dirContents.size(); i++) {
+					out.push_back(dirName + "/" + dirContents[i]);
+				}
 			}
 		}
 	}
