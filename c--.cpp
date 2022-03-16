@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
 				printHelpMessage({argv[0], "help", cmd});
 			} else {
 				if (cmd == "compile" || cmd == "c") {
-					compileFile(argsList[2], args);
+					compileCommand(argsList[2], args);
 				} else if (cmd == "run" || cmd == "r") {
 					compileAndRun(argsList[2], args);
 				} else if (cmd == "debug" || cmd == "d") {

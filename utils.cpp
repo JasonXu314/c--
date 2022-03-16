@@ -41,9 +41,11 @@ map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags
 
 				throw invalid_argument(msg);
 			} else {
-				if (flag.isCollatingFlag && !flagValuePair) {
+				if (flag.flagType == FlagType::COLLATING && !flagValuePair) {
 					inCollatingFlag = true;
 					collatingFlagValue = "";
+				} else if (flag.flagType == FlagType::BOOLEAN) {
+					out.insert({flag, ""});
 				} else if (flagValuePair) {
 					out.insert({flag, flagValue});
 				} else {
