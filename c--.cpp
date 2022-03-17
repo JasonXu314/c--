@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "c--_utils.h"
+#include "commands.h"
 
 using namespace std;
 
@@ -23,23 +23,23 @@ int main(int argc, char** argv) {
 		map<Flag, string> args = parseArgs(argsList, CMM_FLAGS);
 
 		if (argc < 2) {
-			printHelpMessage(argsList);
+			helpCommand(argsList);
 		} else {
 			string cmd = argsList[1];
 
 			if (cmd == "help" || cmd == "h") {
-				printHelpMessage(argsList);
+				helpCommand(argsList);
 			} else if (argc < 3) {
-				printHelpMessage({argv[0], "help", cmd});
+				helpCommand({argv[0], "help", cmd});
 			} else {
 				if (cmd == "compile" || cmd == "c") {
 					compileCommand(argsList[2], args);
 				} else if (cmd == "run" || cmd == "r") {
-					compileAndRun(argsList[2], args);
+					runCommand(argsList[2], args);
 				} else if (cmd == "debug" || cmd == "d") {
-					compileAndDebug(argsList[2], args);
+					debugCommand(argsList[2], args);
 				} else if (cmd == "valgrind" || cmd == "v") {
-					compileAndValgrind(argsList[2], args);
+					valgrindCommand(argsList[2], args);
 				} else {
 					cout << "Unknown command: " << cmd << endl;
 				}
