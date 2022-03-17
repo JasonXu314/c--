@@ -25,7 +25,7 @@ void helpCommand(const vector<string>& argsList) {
 				 << "\t" CYN "--raw-flags " BCYN "(-r) " BWHT "<flags>" reset " - raw flags to pass to g++\n"
 				 << "\t" CYN "--watch " BCYN "(-w)" reset "		 - watch the source files for changes\n"
 				 << "\t" CYN "--debug " BCYN "(-d)" reset "		 - compile with debug symbols (" BHWHT "_debug" reset
-					" will be appended to file name unless explicitly set"
+					" will be appended to file name unless explicitly set)"
 				 << endl;
 		} else if (helpCmd == "run" || helpCmd == "r") {
 			cout << BWHT "Usage: " GRN << argsList[0] << CYN " [run | r] " BWHT "[<file> | <file>.cpp] [options]\n" reset
@@ -134,7 +134,9 @@ void compileCommand(const string& file, const map<Flag, string>& args) {
 		runWatchLoop(mainFile, initialCompile, onChange);
 	} else {
 		SourceSet sources = generateSources(mainFile);
-		directCompile(sources, args, debug);
+		string outputPath = directCompile(sources, args, debug);
+
+		cout << GRN "Succesfully compiled to " BWHT << outputPath << reset << endl;
 	}
 }
 
