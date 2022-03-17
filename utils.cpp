@@ -88,11 +88,11 @@ string stripWhitespace(const string& str) {
 	size_t firstNonWhitespace = 0, lastNonWhitespace = str.size() - 1;
 
 	for (size_t i = 0; i < str.size(); i++) {
-		if (!firstNonWhitespaceFound && str[i] != ' ' && str[i] != '\t') {
+		if (!firstNonWhitespaceFound && str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
 			firstNonWhitespace = i;
 			firstNonWhitespaceFound = true;
 		}
-		if (!lastNonWhitespaceFound && str[str.size() - i - 1] != ' ' && str[str.size() - i - 1] != '\t') {
+		if (!lastNonWhitespaceFound && str[str.size() - i - 1] != ' ' && str[str.size() - i - 1] != '\t' && str[str.size() - i - 1] != '\n') {
 			lastNonWhitespace = str.size() - i - 1;
 			lastNonWhitespaceFound = true;
 		}
@@ -102,6 +102,29 @@ string stripWhitespace(const string& str) {
 	}
 
 	return out.substr(firstNonWhitespace, lastNonWhitespace - firstNonWhitespace + 1);
+}
+
+string stripDirectories(const string& fileName) {
+	string out = fileName;
+	size_t lastSlash = out.find_last_of('/');
+
+	if (lastSlash != string::npos) {
+		out = out.substr(lastSlash + 1);
+	}
+
+	return out;
+}
+
+string replace(const string& str, const string& from, const string& to) {
+	string out = str;
+	size_t pos = 0;
+
+	while ((pos = out.find(from, pos)) != string::npos) {
+		out.replace(pos, from.length(), to);
+		pos += to.length();
+	}
+
+	return out;
 }
 
 string readFile(const string& path) {
@@ -114,7 +137,7 @@ string readFile(const string& path) {
 
 	file.close();
 
-	return result;
+	return result.substr(0, line == "" ? result.length() : result.length() - 1);
 }
 
 vector<string> readDir(const string& path) {

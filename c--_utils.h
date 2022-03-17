@@ -17,7 +17,9 @@
 
 #include "Flag.h"
 #include "FlagSet.h"
+#include "SourceDiff.h"
 #include "SourceSet.h"
+#include "colors.h"
 #include "utils.h"
 
 using namespace std;
@@ -38,15 +40,13 @@ void printHelpMessage(const vector<string>& argsList);
 
 void compileCommand(const string& file, const map<Flag, string>& args);
 
-// returns a path to the resulting executable.
-string compile(const SourceSet& sources, const map<Flag, string>& args, bool debug = false);
-
 void compileAndRun(const string& file, const map<Flag, string>& args);
 
 void compileAndDebug(const string& file, const map<Flag, string>& args);
 
 void compileAndValgrind(const string& file, const map<Flag, string>& args);
 
+// Pre: mainFile must be a normalized file name
 SourceSet generateSources(const string& mainFile);
 
 map<string, set<string>> generateDependencyMap();
@@ -55,9 +55,19 @@ void findHeaders(const string& fileName, set<string>& headersVisited);
 
 set<string> findDependents(const string& headerFile, const set<string>& ignore, const map<string, set<string>>& dependencyMap);
 
-void reconcileSources(const int fileWatcher, const SourceSet& oldSources, const SourceSet& newSources, const hash<string>& hash,
-					  map<int, string>& watchDescriptorToPath, map<string, int>& pathToWatchDescriptor, map<string, size_t>& lastContents);
+// Returns a path to the resulting executable.
+string compile(const SourceSet& sources, const map<Flag, string>& args, bool debug = false);
 
-void runWatchLoop(const string& file, const function<void(const SourceSet&)>& onChange);
+// Pre: file must be a normalized file name, and bin/.objects directory must exist
+void compileToObject(const string& file, const map<Flag, string>& args);
+
+// mainFile isn't really used, it's just for determining the output file name if not explicitly set
+string compileObjects(const string& mainFile, const map<Flag, string>& args);
+
+SourceDiff reconcileSources(const int fileWatcher, const SourceSet& oldSources, const SourceSet& newSources, const hash<string>& hash,
+							map<int, string>& watchDescriptorToPath, map<string, int>& pathToWatchDescriptor, map<string, size_t>& lastContents);
+
+void runWatchLoop(const string& file, const function<void(const SourceSet&)>& initialCompile,
+				  const function<void(const SourceDiff&, const string&)>& onChange);
 
 #endif

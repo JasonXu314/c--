@@ -27,6 +27,10 @@ string stripExtension(const string& fileName);
 
 string stripWhitespace(const string& str);
 
+string stripDirectories(const string& fileName);
+
+string replace(const string& str, const string& from, const string& to);
+
 string readFile(const string& path);
 
 vector<string> readDir(const string& path);

@@ -8,7 +8,7 @@
 using namespace std;
 
 int main() {
-	cout << "Hello, World! " << add(346, 74) << endl;
+	cout << "Hello, World! " << add(544, 52) << endl;
 
 	return 0;
 }
