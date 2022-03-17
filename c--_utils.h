@@ -2,6 +2,7 @@
 #define CMM_UTILS_H
 
 #include <dirent.h>
+#include <signal.h>
 #include <sys/inotify.h>
 #include <sys/stat.h>
 #include <unistd.h>

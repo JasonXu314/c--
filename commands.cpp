@@ -23,7 +23,7 @@ void helpCommand(const vector<string>& argsList) {
 				 << "\t" CYN "--output " BCYN "(-o) " BWHT "<name>" reset "     - output file name (default same name as source)\n"
 				 << "\t" CYN "--folder " BCYN "(-f) " BWHT "<folder>" reset "   - folder to output to (default \"bin\")\n"
 				 << "\t" CYN "--raw-flags " BCYN "(-r) " BWHT "<flags>" reset " - raw flags to pass to g++\n"
-				 << "\t" CYN "--watch " BCYN "(-w)" reset "		 - watch the source files for changes\n"
+				 << "\t" CYN "--watch " BCYN "(-w)" reset "		 - watch the source files for changes (" BWHT "quit" reset " or " BWHT "q" reset " to stop)\n"
 				 << "\t" CYN "--debug " BCYN "(-d)" reset "		 - compile with debug symbols (" BHWHT "_debug" reset
 					" will be appended to file name unless explicitly set)"
 				 << endl;

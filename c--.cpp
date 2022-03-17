@@ -13,6 +13,8 @@ int main(int argc, char** argv) {
 		return 1;
 	}
 
+	siginterrupt(SIGINT, true);
+
 	vector<string> argsList;
 
 	for (int i = 0; i < argc; i++) {

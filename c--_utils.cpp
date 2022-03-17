@@ -267,7 +267,22 @@ void runWatchLoop(const string& file, const function<void(const SourceSet&)>& in
 	hash<string> hash;
 	SourceSet sources = generateSources(file);
 	SourceDiff diff;
-	bool deletePhase = true;
+	bool deletePhase = true, continueWatch = true;
+
+	thread quitThread(
+		[](const pthread_t& parentThread) {
+			while (true) {
+				string input;
+
+				cin >> input;
+
+				if (input == "quit" || input == "q") {
+					pthread_kill(parentThread, SIGINT);
+					break;
+				}
+			}
+		},
+		pthread_self());
 
 	for (const string& source : sources.sources) {
 		int watchDescriptor = inotify_add_watch(fileWatcher, source.c_str(), IN_MODIFY);
@@ -285,8 +300,13 @@ void runWatchLoop(const string& file, const function<void(const SourceSet&)>& in
 
 	initialCompile(sources);
 
-	while (true) {
-		if (read(fileWatcher, &event, sizeof(inotify_event) + NAME_MAX + 1) && (event.mask & IN_MODIFY)) {
+	auto noop = [](int) {};
+
+	signal(SIGINT, noop);
+	while (continueWatch) {
+		int bytesRead = read(fileWatcher, &event, sizeof(inotify_event) + NAME_MAX + 1);
+
+		if (bytesRead != -1 && (event.mask & IN_MODIFY)) {
 			if (!deletePhase) {
 				string changedFile = watchDescriptorToPath[event.wd], fileContents = stripWhitespace(readFile(changedFile));
 				size_t hashedContents = hash(fileContents);
@@ -308,6 +328,20 @@ void runWatchLoop(const string& file, const function<void(const SourceSet&)>& in
 			}
 
 			deletePhase = !deletePhase;
+		} else if (bytesRead == -1) {
+			continueWatch = false;
 		}
+	}
+
+	quitThread.join();
+
+	cout << BWHT "Interrupt signal received, cleaning up..." reset << endl;
+
+	for (const string& source : sources.sources) {
+		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[source]);
+	}
+
+	for (const string& header : sources.headers) {
+		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[header]);
 	}
 }
