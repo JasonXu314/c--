@@ -25,7 +25,7 @@
 
 using namespace std;
 
-const regex INCLUDE_REGEX("^\\s*#include \"(.*)\""),
+const regex INCLUDE_REGEX("^\\s*#include \"(.*)\"\\s*"),
 	MAIN_REGEX(
 		"int\\s+main\\s*\\(\\s*(int\\s+[a-zA-Z_][a-zA-Z_0-9]*|int\\s+[a-zA-Z_][a-zA-Z_0-9]*,\\s*(char\\*\\*\\s+[a-zA-Z_][a-zA-Z_0-9]*|char\\*"
 		"\\s+[a-zA-Z_][a-zA-Z_0-9]*\\[\\d*\\]))?\\s*\\)");

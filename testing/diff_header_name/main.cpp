@@ -1,6 +1,9 @@
-#include "header.h"
+#include <iostream>
+#include <cstdlib>
+#include "functions.h"
+using namespace std;
 
 int main() {
-	noop();
+	add(1, 2);
 	return 0;
 }
