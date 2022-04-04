@@ -103,7 +103,7 @@ void findHeaders(const string& fileName, set<string>& headersVisited) {
 }
 
 string directCompile(const SourceSet& sources, const map<Flag, string>& args, bool debug) {
-	string inputFile = sources.main, outputFile = stripExtension(inputFile), outputFolder = "bin", rawFlags, sourcesList;
+	string inputFile = sources.main, outputFile = stripExtension(stripDirectories(inputFile)), outputFolder = "bin", rawFlags, sourcesList;
 
 	if (debug) {
 		outputFile += "_debug";
