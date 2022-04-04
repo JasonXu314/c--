@@ -8,9 +8,17 @@
 using namespace std;
 
 int main(int argc, char** argv) {
-	if (system("g++ --version > /dev/null") != 0) {
-		cout << "g++ not found" << endl;
+	SystemRequirements sys = findSystemRequirements();
+
+	if (!sys.gpp.present) {
+		cout << BRED "g++ not found" reset << endl;
 		return 1;
+	}
+
+	if (sys.mold.present) {
+		cout << BGRN "Using mold..." reset << endl;
+	} else {
+		cout << BCYN "Using default " BWHT "ld..." reset << endl;
 	}
 
 	siginterrupt(SIGINT, true);
@@ -35,13 +43,13 @@ int main(int argc, char** argv) {
 				helpCommand({argv[0], "help", cmd});
 			} else {
 				if (cmd == "compile" || cmd == "c") {
-					compileCommand(argsList[2], args);
+					compileCommand(argsList[2], args, sys);
 				} else if (cmd == "run" || cmd == "r") {
-					runCommand(argsList[2], args);
+					runCommand(argsList[2], args, sys);
 				} else if (cmd == "debug" || cmd == "d") {
-					debugCommand(argsList[2], args);
+					debugCommand(argsList[2], args, sys);
 				} else if (cmd == "valgrind" || cmd == "v") {
-					valgrindCommand(argsList[2], args);
+					valgrindCommand(argsList[2], args, sys);
 				} else {
 					cout << "Unknown command: " << cmd << endl;
 				}

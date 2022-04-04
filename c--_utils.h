@@ -20,6 +20,7 @@
 #include "FlagSet.h"
 #include "SourceDiff.h"
 #include "SourceSet.h"
+#include "SystemRequirements.h"
 #include "colors.h"
 #include "utils.h"
 
@@ -45,18 +46,23 @@ void findHeaders(const string& fileName, set<string>& headersVisited);
 set<string> findDependents(const string& headerFile, const set<string>& ignore, const map<string, set<string>>& dependencyMap);
 
 // Returns a path to the resulting executable.
-string directCompile(const SourceSet& sources, const map<Flag, string>& args, bool debug = false);
+string directCompile(const SourceSet& sources, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false);
 
 // Pre: file must be a normalized file name, and bin/.objects directory must exist
-void compileToObject(const string& file, const map<Flag, string>& args, bool debug = false);
+void compileToObject(const string& file, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false);
 
 // mainFile isn't really used, it's just for determining the output file name if not explicitly set
-string compileObjects(const string& mainFile, const map<Flag, string>& args, bool debug = false);
+string compileObjects(const string& mainFile, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false);
 
 SourceDiff reconcileSources(const int fileWatcher, const SourceSet& oldSources, const SourceSet& newSources, const hash<string>& hash,
 							map<int, string>& watchDescriptorToPath, map<string, int>& pathToWatchDescriptor, map<string, size_t>& lastContents);
 
 void runWatchLoop(const string& file, const function<void(const SourceSet&)>& initialCompile,
 				  const function<void(const SourceDiff&, const string&)>& onChange);
+
+// Only gcc 12.1.0 and later support -fuse-ld=mold, otherwise use -B
+bool gccVersionGood();
+
+SystemRequirements findSystemRequirements();
 
 #endif

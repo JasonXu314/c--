@@ -61,7 +61,7 @@ void helpCommand(const vector<string>& argsList) {
 	}
 }
 
-void compileCommand(const string& file, const map<Flag, string>& args) {
+void compileCommand(const string& file, const map<Flag, string>& args, const SystemRequirements& sys) {
 	string mainFile = normalizeFileName(file), outputFolder = args.count(FOLDER_FLAG) ? args.at(FOLDER_FLAG) : "bin";
 	bool debug = false;
 
@@ -97,22 +97,22 @@ void compileCommand(const string& file, const map<Flag, string>& args) {
 			}
 		}
 
-		auto initialCompile = [&args, &mainFile, &debug](const SourceSet& sources) {
+		auto initialCompile = [&args, &mainFile, &debug, &sys](const SourceSet& sources) {
 			try {
 				for (const string& source : sources.sources) {
-					compileToObject(source, args, debug);
+					compileToObject(source, args, sys, debug);
 				}
 
-				string outputPath = compileObjects(mainFile, args, debug);
+				string outputPath = compileObjects(mainFile, args, sys, debug);
 
 				cout << GRN "Succesfully compiled to " BWHT << outputPath << reset << endl;
 			} catch (exception& e) {
 				cout << "Compilation " BHRED "failed..." reset "\n" << e.what() << endl;
 			}
 		};
-		auto onChange = [&args, &mainFile, &outputFolder, &debug](const SourceDiff& diff, const string& changedFile) {
+		auto onChange = [&args, &mainFile, &outputFolder, &debug, &sys](const SourceDiff& diff, const string& changedFile) {
 			try {
-				compileToObject(changedFile, args, debug);
+				compileToObject(changedFile, args, sys, debug);
 
 				for (const string& source : diff.removed) {
 					string objectPath = outputFolder + "/.objects/" + source + ".o";
@@ -120,10 +120,10 @@ void compileCommand(const string& file, const map<Flag, string>& args) {
 				}
 
 				for (const string& source : diff.added) {
-					compileToObject(source, args, debug);
+					compileToObject(source, args, sys, debug);
 				}
 
-				string outputPath = compileObjects(mainFile, args, debug);
+				string outputPath = compileObjects(mainFile, args, sys, debug);
 
 				cout << GRN "Succesfully compiled to " BWHT << outputPath << reset << endl;
 			} catch (exception& e) {
@@ -134,13 +134,16 @@ void compileCommand(const string& file, const map<Flag, string>& args) {
 		runWatchLoop(mainFile, initialCompile, onChange);
 	} else {
 		SourceSet sources = generateSources(mainFile);
-		string outputPath = directCompile(sources, args, debug);
+
+		cout << BGRN "Compiling..." reset << endl;
+
+		string outputPath = directCompile(sources, args, sys, debug);
 
 		cout << GRN "Succesfully compiled to " BWHT << outputPath << reset << endl;
 	}
 }
 
-void runCommand(const string& file, const map<Flag, string>& args) {
+void runCommand(const string& file, const map<Flag, string>& args, const SystemRequirements& sys) {
 	string mainFile = normalizeFileName(file), outputFolder = args.count(FOLDER_FLAG) ? args.at(FOLDER_FLAG) : "bin";
 
 	if (args.count(WATCH_FLAG)) {
@@ -171,13 +174,13 @@ void runCommand(const string& file, const map<Flag, string>& args) {
 			}
 		}
 
-		auto initialCompile = [&args, &mainFile](const SourceSet& sources) {
+		auto initialCompile = [&args, &mainFile, &sys](const SourceSet& sources) {
 			try {
 				for (const string& source : sources.sources) {
-					compileToObject(source, args);
+					compileToObject(source, args, sys);
 				}
 
-				string executablePath = compileObjects(mainFile, args), runCmd = executablePath;
+				string executablePath = compileObjects(mainFile, args, sys), runCmd = executablePath;
 
 				if (args.count(ARGS_FLAG)) {
 					runCmd += " " + args.at(ARGS_FLAG);
@@ -189,9 +192,9 @@ void runCommand(const string& file, const map<Flag, string>& args) {
 				cout << "Compilation " BHRED "failed..." reset "\n" << e.what() << endl;
 			}
 		};
-		auto onChange = [&args, &mainFile, &outputFolder](const SourceDiff& diff, const string& changedFile) {
+		auto onChange = [&args, &mainFile, &outputFolder, &sys](const SourceDiff& diff, const string& changedFile) {
 			try {
-				compileToObject(changedFile, args);
+				compileToObject(changedFile, args, sys);
 
 				for (const string& source : diff.removed) {
 					string objectPath = outputFolder + "/.objects/" + source + ".o";
@@ -199,10 +202,10 @@ void runCommand(const string& file, const map<Flag, string>& args) {
 				}
 
 				for (const string& source : diff.added) {
-					compileToObject(source, args);
+					compileToObject(source, args, sys);
 				}
 
-				string executablePath = compileObjects(mainFile, args), runCmd = executablePath;
+				string executablePath = compileObjects(mainFile, args, sys), runCmd = executablePath;
 
 				if (args.count(ARGS_FLAG)) {
 					runCmd += " " + args.at(ARGS_FLAG);
@@ -218,7 +221,10 @@ void runCommand(const string& file, const map<Flag, string>& args) {
 		runWatchLoop(mainFile, initialCompile, onChange);
 	} else {
 		SourceSet sources = generateSources(mainFile);
-		string executablePath = directCompile(sources, args, false), runCmd = executablePath;
+
+		cout << BGRN "Compiling..." reset << endl;
+
+		string executablePath = directCompile(sources, args, sys, false), runCmd = executablePath;
 
 		if (args.count(ARGS_FLAG)) {
 			runCmd += " " + args.at(ARGS_FLAG);
@@ -228,13 +234,13 @@ void runCommand(const string& file, const map<Flag, string>& args) {
 	}
 }
 
-void debugCommand(const string& file, const map<Flag, string>& args) {
-	if (system("gdb --version > /dev/null") != 0) {
+void debugCommand(const string& file, const map<Flag, string>& args, const SystemRequirements& sys) {
+	if (!sys.gdb.present) {
 		throw runtime_error(BHRED "GDB not found" reset);
 	}
 
 	SourceSet sources = generateSources(normalizeFileName(file));
-	string executablePath = directCompile(sources, args, true), runCmd = "gdb " + executablePath;
+	string executablePath = directCompile(sources, args, sys, true), runCmd = "gdb " + executablePath;
 
 	if (args.count(GDB_FLAGS_FLAG)) {
 		runCmd += " " + args.at(GDB_FLAGS_FLAG);
@@ -243,13 +249,13 @@ void debugCommand(const string& file, const map<Flag, string>& args) {
 	system(runCmd.c_str());
 }
 
-void valgrindCommand(const string& file, const map<Flag, string>& args) {
-	if (system("valgrind --version > /dev/null") != 0) {
+void valgrindCommand(const string& file, const map<Flag, string>& args, const SystemRequirements& sys) {
+	if (!sys.valgrind.present) {
 		throw runtime_error(BHRED "Valgrind not found" reset);
 	}
 
 	SourceSet sources = generateSources(normalizeFileName(file));
-	string executablePath = directCompile(sources, args, true), runCmd = "valgrind --leak-check=full";
+	string executablePath = directCompile(sources, args, sys, true), runCmd = "valgrind --leak-check=full";
 
 	if (args.count(VALGRIND_FLAGS_FLAG)) {
 		runCmd += " " + args.at(VALGRIND_FLAGS_FLAG);

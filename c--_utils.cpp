@@ -102,7 +102,7 @@ void findHeaders(const string& fileName, set<string>& headersVisited) {
 	in.close();
 }
 
-string directCompile(const SourceSet& sources, const map<Flag, string>& args, bool debug) {
+string directCompile(const SourceSet& sources, const map<Flag, string>& args, const SystemRequirements& sys, bool debug) {
 	string inputFile = sources.main, outputFile = stripExtension(stripDirectories(inputFile)), outputFolder = "bin", rawFlags, sourcesList;
 
 	if (debug) {
@@ -125,6 +125,14 @@ string directCompile(const SourceSet& sources, const map<Flag, string>& args, bo
 
 	if (rawFlags.length() != 0) {
 		cmd += " " + rawFlags;
+	}
+
+	if (sys.mold.present) {
+		if (gccVersionGood()) {
+			cmd += " -fuse-ld=mold";
+		} else {
+			cmd += " -B/usr/local/libexec/mold";
+		}
 	}
 
 	for (const string& source : sources.sources) {
@@ -152,7 +160,7 @@ string directCompile(const SourceSet& sources, const map<Flag, string>& args, bo
 	return "./" + outputFolder + "/" + outputFile;
 }
 
-void compileToObject(const string& file, const map<Flag, string>& args, bool debug) {
+void compileToObject(const string& file, const map<Flag, string>& args, const SystemRequirements& sys, bool debug) {
 	string outputFile = stripExtension(replace(file, "/", "_")) + ".o", outputFolder = "bin/.objects", rawFlags;
 
 	if (args.count(FOLDER_FLAG)) {
@@ -169,6 +177,14 @@ void compileToObject(const string& file, const map<Flag, string>& args, bool deb
 		cmd += " " + rawFlags;
 	}
 
+	if (sys.mold.present) {
+		if (gccVersionGood()) {
+			cmd += " -fuse-ld=mold";
+		} else {
+			cmd += " -B/usr/local/libexec/mold";
+		}
+	}
+
 	cmd += " " + file + " -o " + outputFolder + "/" + outputFile;
 
 	bool statusCode = system(cmd.c_str());
@@ -178,7 +194,7 @@ void compileToObject(const string& file, const map<Flag, string>& args, bool deb
 	}
 }
 
-string compileObjects(const string& mainFile, const map<Flag, string>& args, bool debug) {
+string compileObjects(const string& mainFile, const map<Flag, string>& args, const SystemRequirements& sys, bool debug) {
 	string inputFile = mainFile, outputFile = stripExtension(inputFile), outputFolder = "bin", rawFlags;
 
 	if (debug) {
@@ -201,6 +217,14 @@ string compileObjects(const string& mainFile, const map<Flag, string>& args, boo
 
 	if (rawFlags.length() != 0) {
 		cmd += " " + rawFlags;
+	}
+
+	if (sys.mold.present) {
+		if (gccVersionGood()) {
+			cmd += " -fuse-ld=mold";
+		} else {
+			cmd += " -B/usr/local/libexec/mold";
+		}
 	}
 
 	cmd += " " + outputFolder + "/.objects/*.o -o " + outputFolder + "/" + outputFile;
@@ -257,32 +281,20 @@ SourceDiff reconcileSources(const int fileWatcher, const SourceSet& oldSources, 
 	return out;
 }
 
+/** If you're reading this, PLEASE NEVER EVER ACTUALLY DO THIS UNLESS YOU REALLY REALLY KNOW WHAT YOU'RE DOING */
+namespace GLOBAL_SIGINT_FN {
+function<void()> fn = []() {};
+}
+
 void runWatchLoop(const string& file, const function<void(const SourceSet&)>& initialCompile,
 				  const function<void(const SourceDiff&, const string&)>& onChange) {
 	int fileWatcher = inotify_init();
 	map<int, string> watchDescriptorToPath;
 	map<string, int> pathToWatchDescriptor;
 	map<string, size_t> lastContents;
-	inotify_event event;
 	hash<string> hash;
 	SourceSet sources = generateSources(file);
-	SourceDiff diff;
-	bool deletePhase = true, continueWatch = true;
-
-	thread quitThread(
-		[](const pthread_t& parentThread) {
-			while (true) {
-				string input;
-
-				cin >> input;
-
-				if (input == "quit" || input == "q") {
-					pthread_kill(parentThread, SIGINT);
-					break;
-				}
-			}
-		},
-		pthread_self());
+	bool continueWatch = true;
 
 	for (const string& source : sources.sources) {
 		int watchDescriptor = inotify_add_watch(fileWatcher, source.c_str(), IN_MODIFY);
@@ -300,40 +312,58 @@ void runWatchLoop(const string& file, const function<void(const SourceSet&)>& in
 
 	initialCompile(sources);
 
-	auto noop = [](int) {};
+	thread watchThread([&continueWatch, &sources, &fileWatcher, &watchDescriptorToPath, &pathToWatchDescriptor, &hash, &lastContents, &onChange, &file]() {
+		inotify_event event;
+		SourceDiff diff;
+		bool deletePhase = true;
 
-	signal(SIGINT, noop);
-	while (continueWatch) {
-		int bytesRead = read(fileWatcher, &event, sizeof(inotify_event) + NAME_MAX + 1);
+		while (continueWatch) {
+			int bytesRead = read(fileWatcher, &event, sizeof(inotify_event) + NAME_MAX + 1);
 
-		if (bytesRead != -1 && (event.mask & IN_MODIFY)) {
-			if (!deletePhase) {
-				string changedFile = watchDescriptorToPath[event.wd], fileContents = stripWhitespace(readFile(changedFile));
-				size_t hashedContents = hash(fileContents);
+			if (bytesRead != -1 && (event.mask & IN_MODIFY)) {
+				if (!deletePhase) {
+					string changedFile = watchDescriptorToPath[event.wd], fileContents = stripWhitespace(readFile(changedFile));
+					size_t hashedContents = hash(fileContents);
 
-				if (lastContents[changedFile] != hashedContents) {
-					system("clear");
-					cout << BWHT "Change to " GRN << changedFile << BWHT " detected" reset ", re-compiling..." << endl;
+					if (lastContents[changedFile] != hashedContents) {
+						system("clear");
+						cout << BWHT "Change to " GRN << changedFile << BWHT " detected" reset ", re-compiling..." << endl;
 
-					SourceSet newSources = generateSources(file);
-					diff = reconcileSources(fileWatcher, sources, newSources, hash, watchDescriptorToPath, pathToWatchDescriptor, lastContents);
-					sources = newSources;
+						SourceSet newSources = generateSources(file);
+						diff = reconcileSources(fileWatcher, sources, newSources, hash, watchDescriptorToPath, pathToWatchDescriptor, lastContents);
+						sources = newSources;
 
-					onChange(diff, changedFile);
+						onChange(diff, changedFile);
 
-					lastContents[changedFile] = hashedContents;
-				} else {
-					cout << RED "No effective change" reset " to " BWHT << changedFile << reset ", not compiling" << endl;
+						lastContents[changedFile] = hashedContents;
+					} else {
+						cout << RED "No effective change" reset " to " BWHT << changedFile << reset ", not compiling" << endl;
+					}
 				}
-			}
 
-			deletePhase = !deletePhase;
-		} else if (bytesRead == -1) {
+				deletePhase = !deletePhase;
+			} else if (bytesRead == -1) {
+				continueWatch = false;
+			}
+		}
+	});
+
+	GLOBAL_SIGINT_FN::fn = [&continueWatch]() { continueWatch = false; };
+
+	signal(SIGINT, [](int) { GLOBAL_SIGINT_FN::fn(); });
+
+	while (continueWatch) {
+		string input;
+
+		cin >> input;
+
+		if (input == "quit" || input == "q") {
 			continueWatch = false;
 		}
 	}
 
-	quitThread.join();
+	pthread_kill(watchThread.native_handle(), SIGINT);
+	watchThread.join();
 
 	cout << BWHT "Interrupt signal received, cleaning up..." reset << endl;
 
@@ -344,4 +374,74 @@ void runWatchLoop(const string& file, const function<void(const SourceSet&)>& in
 	for (const string& header : sources.headers) {
 		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[header]);
 	}
+}
+
+bool gccVersionGood() {
+	FILE* fp;
+	char str[32];
+
+	fp = popen("g++ --version | grep -o -P '(?<= )[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}(?=$)'", "r");
+	fgets(str, sizeof(str), fp);
+
+	pclose(fp);
+
+	string versionString(str);
+
+	int majorVersion = stoi(versionString.substr(0, versionString.find(".")));
+
+	return majorVersion >= 12;
+}
+
+SystemRequirements findSystemRequirements() {
+	SystemRequirements out;
+
+	FILE* fp;
+	char str[256];
+	int statusCode;
+
+	fp = popen("command -v g++", "r");
+	fgets(str, sizeof(str), fp);
+	statusCode = pclose(fp);
+
+	if (statusCode != 0) {
+		out.gpp = {false, ""};
+	} else {
+		string path(str);
+		out.gpp = {true, path};
+	}
+
+	fp = popen("command -v gdb", "r");
+	fgets(str, sizeof(str), fp);
+	statusCode = pclose(fp);
+
+	if (statusCode != 0) {
+		out.gdb = {false, ""};
+	} else {
+		string path(str);
+		out.gdb = {true, path};
+	}
+
+	fp = popen("command -v valgrind", "r");
+	fgets(str, sizeof(str), fp);
+	statusCode = pclose(fp);
+
+	if (statusCode != 0) {
+		out.valgrind = {false, ""};
+	} else {
+		string path(str);
+		out.valgrind = {true, path};
+	}
+
+	fp = popen("command -v mold", "r");
+	fgets(str, sizeof(str), fp);
+	statusCode = pclose(fp);
+
+	if (statusCode != 0) {
+		out.mold = {false, ""};
+	} else {
+		string path(str);
+		out.mold = {true, path};
+	}
+
+	return out;
 }
