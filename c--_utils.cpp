@@ -1,24 +1,25 @@
 #include "c--_utils.h"
+#include "SourceFiles.h"
+#include "utils.h"
 
-SourceSet generateSources(const string& mainFile) {
-	SourceSet out;
-	fstream in(mainFile);
+SourceSet generateSources(const string& mainPath) {
+	SourceSet out = {{stripDirectories(mainPath), mainPath}, {}, {}};
+	fstream in(mainPath);
 	string line;
 	map<string, set<string>> dependencyMap = generateDependencyMap();
 
-	out.main = mainFile;
-	out.sources.insert(mainFile);
+	out.sources.insert(out.main);
 
-	for (const string& header : dependencyMap[mainFile]) {
-		if (!out.headers.count(header)) {
+	for (const string& header : dependencyMap[mainPath]) {
+		if (!out.headers.contains(header)) {
 			findHeaders(header, out.headers);
 		}
 	}
 
-	for (const string& headerFile : out.headers) {
-		set<string> dependents = findDependents(headerFile, out.sources, dependencyMap);
+	for (const Header& headerFile : out.headers) {
+		FileSet<Implementation> dependents = findDependents(headerFile, out.sources, dependencyMap);
 
-		for (const string& dependent : dependents) {
+		for (const Implementation& dependent : dependents) {
 			out.sources.insert(dependent);
 		}
 	}
@@ -30,7 +31,7 @@ SourceSet generateSources(const string& mainFile) {
 
 map<string, set<string>> generateDependencyMap() {
 	map<string, set<string>> out;
-	vector<string> files = readDir(".");
+	set<string> files = readDir(".");
 
 	for (const string& file : files) {
 		smatch foldersMatch;
@@ -43,7 +44,7 @@ map<string, set<string>> generateDependencyMap() {
 
 				while (getline(in, line)) {
 					if (regex_match(line, includeMatch, INCLUDE_REGEX)) {
-						string includeFile = foldersMatch[1].str() + includeMatch[1].str();
+						string includeFile = resolvePath(foldersMatch[1].str() + includeMatch[1].str());
 
 						out[file].insert(includeFile);
 					}
@@ -57,20 +58,20 @@ map<string, set<string>> generateDependencyMap() {
 	return out;
 }
 
-set<string> findDependents(const string& headerFile, const set<string>& ignore, const map<string, set<string>>& dependencyMap) {
-	set<string> out;
+FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<Implementation>& ignore, const map<string, set<string>>& dependencyMap) {
+	FileSet<Implementation> out;
 
 	for (const auto& entry : dependencyMap) {
 		string cppFile = entry.first;
 		set<string> headers = entry.second;
 
-		if (ignore.count(cppFile)) {
+		if (ignore.contains(cppFile)) {
 			continue;
-		} else if (headers.count(headerFile)) {
+		} else if (headers.count(headerFile.path)) {
 			string fileContents = readFile(cppFile);
 
 			if (!regex_search(fileContents, MAIN_REGEX)) {
-				out.insert(cppFile);
+				out.insert({stripDirectories(cppFile), cppFile});
 			}
 		}
 	}
@@ -78,14 +79,14 @@ set<string> findDependents(const string& headerFile, const set<string>& ignore, 
 	return out;
 }
 
-void findHeaders(const string& fileName, set<string>& headersVisited) {
-	if (headersVisited.count(fileName)) {
+void findHeaders(const string& filePath, FileSet<Header>& headersVisited) {
+	if (headersVisited.contains(filePath)) {
 		return;
 	} else {
-		headersVisited.insert(fileName);
+		headersVisited.insert({stripDirectories(filePath), filePath});
 	}
 
-	fstream in(fileName);
+	fstream in(filePath);
 	string line;
 	smatch match;
 
@@ -93,7 +94,7 @@ void findHeaders(const string& fileName, set<string>& headersVisited) {
 		if (regex_match(line, match, INCLUDE_REGEX)) {
 			string includeFile = match[1];
 
-			if (!headersVisited.count(includeFile)) {
+			if (!headersVisited.contains(includeFile)) {
 				findHeaders(includeFile, headersVisited);
 			}
 		}
@@ -103,7 +104,7 @@ void findHeaders(const string& fileName, set<string>& headersVisited) {
 }
 
 string directCompile(const SourceSet& sources, const map<Flag, string>& args, const SystemRequirements& sys, bool debug) {
-	string inputFile = sources.main, outputFile = stripExtension(stripDirectories(inputFile)), outputFolder = "bin", rawFlags, sourcesList;
+	string inputFile = sources.main.path, outputFile = stripExtension(stripDirectories(inputFile)), outputFolder = "bin", rawFlags, sourcesList;
 
 	if (debug) {
 		outputFile += "_debug";
@@ -135,8 +136,8 @@ string directCompile(const SourceSet& sources, const map<Flag, string>& args, co
 		}
 	}
 
-	for (const string& source : sources.sources) {
-		sourcesList += source + " ";
+	for (const Implementation& source : sources.sources) {
+		sourcesList += source.path + " ";
 	}
 
 	cmd += " " + stripWhitespace(sourcesList) + " -o " + outputFolder + "/" + outputFile;
@@ -195,7 +196,7 @@ void compileToObject(const string& file, const map<Flag, string>& args, const Sy
 }
 
 string compileObjects(const string& mainFile, const map<Flag, string>& args, const SystemRequirements& sys, bool debug) {
-	string inputFile = mainFile, outputFile = stripExtension(inputFile), outputFolder = "bin", rawFlags;
+	string inputFile = stripDirectories(mainFile), outputFile = stripExtension(inputFile), outputFolder = "bin", rawFlags;
 
 	if (debug) {
 		outputFile += "_debug";
@@ -242,39 +243,39 @@ SourceDiff reconcileSources(const int fileWatcher, const SourceSet& oldSources, 
 							map<int, string>& watchDescriptorToPath, map<string, int>& pathToWatchDescriptor, map<string, size_t>& lastContents) {
 	SourceDiff out;
 
-	for (const string& source : newSources.sources) {
-		if (!oldSources.sources.count(source)) {
-			int watchDescriptor = inotify_add_watch(fileWatcher, source.c_str(), IN_MODIFY);
-			watchDescriptorToPath.insert({watchDescriptor, source});
-			pathToWatchDescriptor.insert({source, watchDescriptor});
-			lastContents[source] = hash(stripWhitespace(readFile(source)));
-			out.added.insert(source);
+	for (const Implementation& source : newSources.sources) {
+		if (!oldSources.sources.contains(source)) {
+			int watchDescriptor = inotify_add_watch(fileWatcher, source.path.c_str(), IN_MODIFY);
+			watchDescriptorToPath.insert({watchDescriptor, source.path});
+			pathToWatchDescriptor.insert({source.path, watchDescriptor});
+			lastContents[source.path] = hash(stripWhitespace(readFile(source.path)));
+			out.added.insert(source.path);
 		}
 	}
 
-	for (const string& source : oldSources.sources) {
-		if (!newSources.sources.count(source)) {
-			inotify_rm_watch(fileWatcher, pathToWatchDescriptor[source]);
-			watchDescriptorToPath.erase(pathToWatchDescriptor[source]);
-			pathToWatchDescriptor.erase(source);
-			out.removed.insert(source);
+	for (const Implementation& source : oldSources.sources) {
+		if (!newSources.sources.contains(source.path)) {
+			inotify_rm_watch(fileWatcher, pathToWatchDescriptor[source.path]);
+			watchDescriptorToPath.erase(pathToWatchDescriptor[source.path]);
+			pathToWatchDescriptor.erase(source.path);
+			out.removed.insert(source.path);
 		}
 	}
 
-	for (const string& header : newSources.headers) {
-		if (!oldSources.headers.count(header)) {
-			int watchDescriptor = inotify_add_watch(fileWatcher, header.c_str(), IN_MODIFY);
-			watchDescriptorToPath.insert({watchDescriptor, header});
-			pathToWatchDescriptor.insert({header, watchDescriptor});
-			lastContents[header] = hash(stripWhitespace(readFile(header)));
+	for (const Header& header : newSources.headers) {
+		if (!oldSources.headers.contains(header)) {
+			int watchDescriptor = inotify_add_watch(fileWatcher, header.path.c_str(), IN_MODIFY);
+			watchDescriptorToPath.insert({watchDescriptor, header.path});
+			pathToWatchDescriptor.insert({header.path, watchDescriptor});
+			lastContents[header.path] = hash(stripWhitespace(readFile(header.path)));
 		}
 	}
 
-	for (const string& header : oldSources.headers) {
-		if (!newSources.headers.count(header)) {
-			inotify_rm_watch(fileWatcher, pathToWatchDescriptor[header]);
-			watchDescriptorToPath.erase(pathToWatchDescriptor[header]);
-			pathToWatchDescriptor.erase(header);
+	for (const Header& header : oldSources.headers) {
+		if (!newSources.headers.contains(header)) {
+			inotify_rm_watch(fileWatcher, pathToWatchDescriptor[header.path]);
+			watchDescriptorToPath.erase(pathToWatchDescriptor[header.path]);
+			pathToWatchDescriptor.erase(header.path);
 		}
 	}
 
@@ -296,18 +297,18 @@ void runWatchLoop(const string& file, const function<void(const SourceSet&)>& in
 	SourceSet sources = generateSources(file);
 	bool continueWatch = true;
 
-	for (const string& source : sources.sources) {
-		int watchDescriptor = inotify_add_watch(fileWatcher, source.c_str(), IN_MODIFY);
-		watchDescriptorToPath.insert({watchDescriptor, source});
-		pathToWatchDescriptor.insert({source, watchDescriptor});
-		lastContents.insert({source, hash(stripWhitespace(readFile(source)))});
+	for (const Implementation& source : sources.sources) {
+		int watchDescriptor = inotify_add_watch(fileWatcher, source.path.c_str(), IN_MODIFY);
+		watchDescriptorToPath.insert({watchDescriptor, source.path});
+		pathToWatchDescriptor.insert({source.path, watchDescriptor});
+		lastContents.insert({source.path, hash(stripWhitespace(readFile(source.path)))});
 	}
 
-	for (const string& header : sources.headers) {
-		int watchDescriptor = inotify_add_watch(fileWatcher, header.c_str(), IN_MODIFY);
-		watchDescriptorToPath.insert({watchDescriptor, header});
-		pathToWatchDescriptor.insert({header, watchDescriptor});
-		lastContents.insert({header, hash(stripWhitespace(readFile(header)))});
+	for (const Header& header : sources.headers) {
+		int watchDescriptor = inotify_add_watch(fileWatcher, header.path.c_str(), IN_MODIFY);
+		watchDescriptorToPath.insert({watchDescriptor, header.path});
+		pathToWatchDescriptor.insert({header.path, watchDescriptor});
+		lastContents.insert({header.path, hash(stripWhitespace(readFile(header.path)))});
 	}
 
 	initialCompile(sources);
@@ -367,12 +368,12 @@ void runWatchLoop(const string& file, const function<void(const SourceSet&)>& in
 
 	cout << BWHT "Interrupt signal received, cleaning up..." reset << endl;
 
-	for (const string& source : sources.sources) {
-		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[source]);
+	for (const Implementation& source : sources.sources) {
+		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[source.path]);
 	}
 
-	for (const string& header : sources.headers) {
-		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[header]);
+	for (const Header& header : sources.headers) {
+		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[header.path]);
 	}
 }
 

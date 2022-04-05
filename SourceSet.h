@@ -4,12 +4,15 @@
 #include <set>
 #include <string>
 
+#include "FileSet.hpp"
+#include "SourceFiles.h"
+
 using namespace std;
 
 struct SourceSet {
-	string main;
-	set<string> headers;
-	set<string> sources;
+	Implementation main;
+	FileSet<Header> headers;
+	FileSet<Implementation> sources;
 };
 
 #endif

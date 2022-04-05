@@ -19,6 +19,7 @@
 #include "Flag.h"
 #include "FlagSet.h"
 #include "SourceDiff.h"
+#include "SourceFiles.h"
 #include "SourceSet.h"
 #include "SystemRequirements.h"
 #include "colors.h"
@@ -26,7 +27,7 @@
 
 using namespace std;
 
-const regex INCLUDE_REGEX("^\\s*#include \"(.*)\"\\s*"),
+const regex INCLUDE_REGEX("^\\s*(?:#|%:)\\s*include \"(.*)\"\\s*"),
 	MAIN_REGEX(
 		"int\\s+main\\s*\\(\\s*(int\\s+[a-zA-Z_][a-zA-Z_0-9]*|int\\s+[a-zA-Z_][a-zA-Z_0-9]*,\\s*(char\\*\\*\\s+[a-zA-Z_][a-zA-Z_0-9]*|char\\*"
 		"\\s+[a-zA-Z_][a-zA-Z_0-9]*\\[\\d*\\]))?\\s*\\)");
@@ -37,13 +38,13 @@ const Flag OUTPUT_FLAG = {"--output", {"-o"}, FlagType::NORMAL}, FOLDER_FLAG = {
 const FlagSet CMM_FLAGS = {OUTPUT_FLAG, FOLDER_FLAG, ARGS_FLAG, RAW_FLAGS_FLAG, VALGRIND_FLAGS_FLAG, GDB_FLAGS_FLAG, WATCH_FLAG, DEBUG_FLAG};
 
 // Pre: mainFile must be a normalized file name
-SourceSet generateSources(const string& mainFile);
+SourceSet generateSources(const string& mainPath);
 
 map<string, set<string>> generateDependencyMap();
 
-void findHeaders(const string& fileName, set<string>& headersVisited);
+void findHeaders(const string& filePath, FileSet<Header>& headersVisited);
 
-set<string> findDependents(const string& headerFile, const set<string>& ignore, const map<string, set<string>>& dependencyMap);
+FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<Implementation>& ignore, const map<string, set<string>>& dependencyMap);
 
 // Returns a path to the resulting executable.
 string directCompile(const SourceSet& sources, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false);

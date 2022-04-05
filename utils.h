@@ -8,6 +8,7 @@
 #include <map>
 #include <regex>
 #include <set>
+#include <stack>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -33,6 +34,11 @@ string replace(const string& str, const string& from, const string& to);
 
 string readFile(const string& path);
 
-vector<string> readDir(const string& path);
+// Recursively reads the directory (subdirectories' files will have preceeding path prepended)
+set<string> readDir(const string& path);
+
+vector<string> split(const string& str, const string& delimiter);
+
+string resolvePath(const string& path);
 
 #endif

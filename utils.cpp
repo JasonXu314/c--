@@ -140,8 +140,8 @@ string readFile(const string& path) {
 	return result.substr(0, line == "" ? result.length() : result.length() - 1);
 }
 
-vector<string> readDir(const string& path) {
-	vector<string> out;
+set<string> readDir(const string& path) {
+	set<string> out;
 	DIR* dir;
 	dirent* entry;
 
@@ -150,13 +150,13 @@ vector<string> readDir(const string& path) {
 			if (entry->d_type == DT_REG) {
 				string fileName = entry->d_name;
 
-				out.push_back(fileName);
+				out.insert(fileName);
 			} else if (entry->d_type == DT_DIR && entry->d_name[0] != '.') {
 				string dirName = entry->d_name;
-				vector<string> dirContents = readDir(path + "/" + dirName);
+				set<string> dirContents = readDir(path + "/" + dirName);
 
-				for (size_t i = 0; i < dirContents.size(); i++) {
-					out.push_back(dirName + "/" + dirContents[i]);
+				for (const string& nestedFile : dirContents) {
+					out.insert(dirName + "/" + nestedFile);
 				}
 			}
 		}
@@ -165,4 +165,44 @@ vector<string> readDir(const string& path) {
 	closedir(dir);
 
 	return out;
+}
+
+vector<string> split(const string& str, const string& delimiter) {
+	vector<string> out;
+	string word;
+
+	for (size_t i = 0; i < str.length() - delimiter.length() + 1; i++) {
+		if (str.substr(i, delimiter.length()) == delimiter) {
+			out.push_back(word);
+			word = "";
+			i += delimiter.length() - 1;
+		} else {
+			word += str[i];
+		}
+	}
+
+	out.push_back(word);
+
+	return out;
+}
+
+string resolvePath(const string& path) {
+	stack<string> pathStack;
+
+	for (const string& dir : split(path, "/")) {
+		if (dir == "..") {
+			pathStack.pop();
+		} else if (dir != ".") {
+			pathStack.push(dir);
+		}
+	}
+
+	string out = "";
+
+	while (!pathStack.empty()) {
+		out = "/" + pathStack.top() + out;
+		pathStack.pop();
+	}
+
+	return out.substr(1);
 }

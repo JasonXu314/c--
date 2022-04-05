@@ -1,4 +1,5 @@
 #include "commands.h"
+#include "SourceFiles.h"
 
 void helpCommand(const vector<string>& argsList) {
 	if (argsList.size() < 2) {
@@ -99,8 +100,8 @@ void compileCommand(const string& file, const map<Flag, string>& args, const Sys
 
 		auto initialCompile = [&args, &mainFile, &debug, &sys](const SourceSet& sources) {
 			try {
-				for (const string& source : sources.sources) {
-					compileToObject(source, args, sys, debug);
+				for (const Implementation& source : sources.sources) {
+					compileToObject(source.path, args, sys, debug);
 				}
 
 				string outputPath = compileObjects(mainFile, args, sys, debug);
@@ -176,8 +177,8 @@ void runCommand(const string& file, const map<Flag, string>& args, const SystemR
 
 		auto initialCompile = [&args, &mainFile, &sys](const SourceSet& sources) {
 			try {
-				for (const string& source : sources.sources) {
-					compileToObject(source, args, sys);
+				for (const Implementation& source : sources.sources) {
+					compileToObject(source.path, args, sys);
 				}
 
 				string executablePath = compileObjects(mainFile, args, sys), runCmd = executablePath;
