@@ -171,7 +171,7 @@ vector<string> split(const string& str, const string& delimiter) {
 	vector<string> out;
 	string word;
 
-	for (size_t i = 0; i < str.length() - delimiter.length() + 1; i++) {
+	for (size_t i = 0; i < str.length(); i++) {
 		if (str.substr(i, delimiter.length()) == delimiter) {
 			out.push_back(word);
 			word = "";
