@@ -16,7 +16,7 @@ public:
 	bool contains(const Flag& flag) const;
 	bool contains(const string& flagName) const;
 
-	const Flag get(const string& flagName) const;
+	const Flag& get(const string& flagName) const;
 
 private:
 	set<Flag> _flags;

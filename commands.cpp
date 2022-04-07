@@ -1,4 +1,5 @@
 #include "commands.h"
+
 #include "SourceFiles.h"
 
 void helpCommand(const vector<string>& argsList) {
@@ -25,6 +26,8 @@ void helpCommand(const vector<string>& argsList) {
 				 << "\t" CYN "--folder " BCYN "(-f) " BWHT "<folder>" reset "   - folder to output to (default \"bin\")\n"
 				 << "\t" CYN "--raw-flags " BCYN "(-r) " BWHT "<flags>" reset " - raw flags to pass to g++\n"
 				 << "\t" CYN "--watch " BCYN "(-w)" reset "		 - watch the source files for changes (" BWHT "quit" reset " or " BWHT "q" reset " to stop)\n"
+				 << "\t" CYN "--ignore-mold " BCYN "(-m)" reset "	 - don't use mold as the linker\n"
+				 << "\t" CYN "--ignore-lld " BCYN "(-l)" reset "	 - don't use ld.lld (llvm linker) as the linker\n"
 				 << "\t" CYN "--debug " BCYN "(-d)" reset "		 - compile with debug symbols (" BHWHT "_debug" reset
 					" will be appended to file name unless explicitly set)"
 				 << endl;
@@ -36,7 +39,9 @@ void helpCommand(const vector<string>& argsList) {
 				 << "\t" CYN "--folder " BCYN "(-f) " BWHT "<folder>" reset "   - folder to output to (default \"bin\")\n"
 				 << "\t" CYN "--args " BCYN "(-a) " BWHT "<arguments>" reset "  - arguments to pass to the executable\n"
 				 << "\t" CYN "--raw-flags " BCYN "(-r) " BWHT "<flags>" reset " - raw flags to pass to g++\n"
-				 << "\t" CYN "--watch " BCYN "(-w)" reset "		- watch the source files for changes" << endl;
+				 << "\t" CYN "--watch " BCYN "(-w)" reset "		- watch the source files for changes\n"
+				 << "\t" CYN "--ignore-mold " BCYN "(-m)" reset "	 - don't use mold as the linker\n"
+				 << "\t" CYN "--ignore-lld " BCYN "(-l)" reset "	 - don't use ld.lld (llvm linker) as the linker" << endl;
 		} else if (helpCmd == "debug" || helpCmd == "d") {
 			cout << BWHT "Usage: " GRN << argsList[0] << CYN " [debug | d] " BWHT "[<file> | <file>.cpp] [options]" reset "\n"
 				 << "Compiles the given file and " BWHT "gdb" reset "'s it.\n\n"
@@ -44,7 +49,9 @@ void helpCommand(const vector<string>& argsList) {
 				 << "\t" CYN "--output " BCYN "(-o) " BWHT "<name>" reset "     - output file name (default same name as source)\n"
 				 << "\t" CYN "--folder " BCYN "(-f) " BWHT "<folder>" reset "   - folder to output to (default \"bin\")\n"
 				 << "\t" CYN "--gdb-flags " BCYN "(-g) " BWHT "<flags>" reset " - raw flags to pass to gdb\n"
-				 << "\t" CYN "--raw-flags " BCYN "(-r) " BWHT "<flags>" reset " - raw flags to pass to g++" << endl;
+				 << "\t" CYN "--raw-flags " BCYN "(-r) " BWHT "<flags>" reset " - raw flags to pass to g++\n"
+				 << "\t" CYN "--ignore-mold " BCYN "(-m)" reset "	 - don't use mold as the linker\n"
+				 << "\t" CYN "--ignore-lld " BCYN "(-l)" reset "	 - don't use ld.lld (llvm linker) as the linker" << endl;
 		} else if (helpCmd == "valgrind" || helpCmd == "v") {
 			cout << BWHT "Usage: " GRN << argsList[0] << CYN " [valgrind | v] " BWHT "[<file> | <file>.cpp] [options]" reset "\n"
 				 << "Compiles the given file and runs " BWHT "valgrind" reset " on it.\n\n"
@@ -53,7 +60,9 @@ void helpCommand(const vector<string>& argsList) {
 				 << "\t" CYN "--folder " BCYN "(-f) " BWHT "<folder>" reset "        - folder to output to (default \"bin\")\n"
 				 << "\t" CYN "--args " BCYN "(-a) " BWHT "<arguments>" reset "       - arguments to pass to the executable\n"
 				 << "\t" CYN "--raw-flags " BCYN "(-r) " BWHT "<flags>" reset "      - raw flags to pass to g++\n"
-				 << "\t" CYN "--valgrind-flags " BCYN "(-v) " BWHT "<flags>" reset " - raw flags to pass to valgrind" << endl;
+				 << "\t" CYN "--valgrind-flags " BCYN "(-v) " BWHT "<flags>" reset " - raw flags to pass to valgrind\n"
+				 << "\t" CYN "--ignore-mold " BCYN "(-m)" reset "	 - don't use mold as the linker\n"
+				 << "\t" CYN "--ignore-lld " BCYN "(-l)" reset "	 - don't use ld.lld (llvm linker) as the linker" << endl;
 		} else {
 			throw invalid_argument("Unknown command: " + helpCmd + "\nUsage: " + argsList[0] + " help <command>");
 		}

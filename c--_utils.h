@@ -16,6 +16,8 @@
 #include <thread>
 #include <vector>
 
+#include "C--Config.h"
+#include "C--Script.h"
 #include "Flag.h"
 #include "FlagSet.h"
 #include "SourceDiff.h"
@@ -30,12 +32,16 @@ using namespace std;
 const regex INCLUDE_REGEX("^\\s*(?:#|%:)\\s*include \"(.*)\"\\s*"),
 	MAIN_REGEX(
 		"int\\s+main\\s*\\(\\s*(int\\s+[a-zA-Z_][a-zA-Z_0-9]*|int\\s+[a-zA-Z_][a-zA-Z_0-9]*,\\s*(char\\*\\*\\s+[a-zA-Z_][a-zA-Z_0-9]*|char\\*"
-		"\\s+[a-zA-Z_][a-zA-Z_0-9]*\\[\\d*\\]))?\\s*\\)");
+		"\\s+[a-zA-Z_][a-zA-Z_0-9]*\\[\\d*\\]))?\\s*\\)"),
+	CATCH_REGEX("\\s*(?:#|%:)define\\s+CATCH_CONFIG_MAIN"), CONFIG_LINE_REGEX("^([a-z\\-]+): (.+)$"), CONFIG_SCRIPT_REGEX("^([a-zA-Z0-9_\\-]+):$"),
+	CONFIG_SCRIPT_LINE_REGEX("^(?:\t| {4}| {2})([a-z\\-]+): (.+)$");
 const Flag OUTPUT_FLAG = {"--output", {"-o"}, FlagType::NORMAL}, FOLDER_FLAG = {"--folder", {"-f"}, FlagType::NORMAL},
 		   ARGS_FLAG = {"--args", {"-a"}, FlagType::COLLATING}, RAW_FLAGS_FLAG = {"--raw-flags", {"-r"}, FlagType::COLLATING},
 		   VALGRIND_FLAGS_FLAG = {"--valgrind-flags", {"-v"}, FlagType::COLLATING}, GDB_FLAGS_FLAG = {"--gdb-flags", {"-g"}, FlagType::COLLATING},
-		   WATCH_FLAG = {"--watch", {"-w"}, FlagType::BOOLEAN}, DEBUG_FLAG = {"--debug", {"-d"}, FlagType::BOOLEAN};
-const FlagSet CMM_FLAGS = {OUTPUT_FLAG, FOLDER_FLAG, ARGS_FLAG, RAW_FLAGS_FLAG, VALGRIND_FLAGS_FLAG, GDB_FLAGS_FLAG, WATCH_FLAG, DEBUG_FLAG};
+		   WATCH_FLAG = {"--watch", {"-w"}, FlagType::BOOLEAN}, DEBUG_FLAG = {"--debug", {"-d"}, FlagType::BOOLEAN},
+		   IGNORE_MOLD_FLAG = {"--ignore-mold", {"-m"}, FlagType::BOOLEAN}, IGNORE_LLD_FLAG = {"--ignore-lld", {"-l"}, FlagType::BOOLEAN};
+const FlagSet CMM_FLAGS = {OUTPUT_FLAG,	   FOLDER_FLAG, ARGS_FLAG,	RAW_FLAGS_FLAG,	  VALGRIND_FLAGS_FLAG,
+						   GDB_FLAGS_FLAG, WATCH_FLAG,	DEBUG_FLAG, IGNORE_MOLD_FLAG, IGNORE_LLD_FLAG};
 
 // Pre: mainFile must be a normalized file name
 SourceSet generateSources(const string& mainPath);
@@ -65,5 +71,13 @@ void runWatchLoop(const string& file, const function<void(const SourceSet&)>& in
 bool gccVersionGood();
 
 SystemRequirements findSystemRequirements();
+
+Config parseConfig(const string& path);
+
+// Merge the options defined by config into the arguments before command processing
+void mergeConfig(map<Flag, string>& args, const Config& config);
+
+// Merge the options defined by config into the arguments before command processing
+void mergeScriptConfig(map<Flag, string>& args, const Script& script);
 
 #endif

@@ -11,3 +11,9 @@ Commands
 Usage: `c-- <command> <file> [options]`
 
 See `c-- help` for more information.
+
+Config
+---
+- A `.cmmrc`, `.cmmrc.yml`, `.c--rc`, or `.c--rc.yml` can be used to set default flags or scripts.
+- A flag set in a config file or script will be overriden by any explicitly passed in by the command line.
+- Example config in `.cmmrc.yml` in this repo.

@@ -20,7 +20,7 @@ using namespace std;
 
 const regex FLAG_REGEX("(--?[a-zA-Z\\-]+)=(.+)");
 
-map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags);
+map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags, size_t startIdx = 2);
 
 string normalizeFileName(const string& fileName);
 

@@ -26,7 +26,7 @@ bool FlagSet::contains(const string& flagName) const {
 	return false;
 }
 
-const Flag FlagSet::get(const string& flagName) const {
+const Flag& FlagSet::get(const string& flagName) const {
 	for (const Flag& flag : _flags) {
 		if (flag == flagName) {
 			return flag;

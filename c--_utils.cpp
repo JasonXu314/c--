@@ -1,4 +1,5 @@
 #include "c--_utils.h"
+
 #include "SourceFiles.h"
 #include "utils.h"
 
@@ -70,7 +71,7 @@ FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<I
 		} else if (headers.count(headerFile.path)) {
 			string fileContents = readFile(cppFile);
 
-			if (!regex_search(fileContents, MAIN_REGEX)) {
+			if (!regex_search(fileContents, MAIN_REGEX) && !regex_search(fileContents, CATCH_REGEX)) {
 				out.insert({stripDirectories(cppFile), cppFile});
 			}
 		}
@@ -128,12 +129,14 @@ string directCompile(const SourceSet& sources, const map<Flag, string>& args, co
 		cmd += " " + rawFlags;
 	}
 
-	if (sys.mold.present) {
+	if (sys.mold.present && !args.count(IGNORE_MOLD_FLAG)) {
 		if (gccVersionGood()) {
 			cmd += " -fuse-ld=mold";
 		} else {
 			cmd += " -B/usr/local/libexec/mold";
 		}
+	} else if (sys.lld.present && !args.count(IGNORE_LLD_FLAG)) {
+		cmd += " -fuse-ld=lld";
 	}
 
 	for (const Implementation& source : sources.sources) {
@@ -178,12 +181,14 @@ void compileToObject(const string& file, const map<Flag, string>& args, const Sy
 		cmd += " " + rawFlags;
 	}
 
-	if (sys.mold.present) {
+	if (sys.mold.present && !args.count(IGNORE_MOLD_FLAG)) {
 		if (gccVersionGood()) {
 			cmd += " -fuse-ld=mold";
 		} else {
 			cmd += " -B/usr/local/libexec/mold";
 		}
+	} else if (sys.lld.present && !args.count(IGNORE_LLD_FLAG)) {
+		cmd += " -fuse-ld=lld";
 	}
 
 	cmd += " " + file + " -o " + outputFolder + "/" + outputFile;
@@ -220,12 +225,14 @@ string compileObjects(const string& mainFile, const map<Flag, string>& args, con
 		cmd += " " + rawFlags;
 	}
 
-	if (sys.mold.present) {
+	if (sys.mold.present && !args.count(IGNORE_MOLD_FLAG)) {
 		if (gccVersionGood()) {
 			cmd += " -fuse-ld=mold";
 		} else {
 			cmd += " -B/usr/local/libexec/mold";
 		}
+	} else if (sys.lld.present && !args.count(IGNORE_LLD_FLAG)) {
+		cmd += " -fuse-ld=lld";
 	}
 
 	cmd += " " + outputFolder + "/.objects/*.o -o " + outputFolder + "/" + outputFile;
@@ -444,5 +451,114 @@ SystemRequirements findSystemRequirements() {
 		out.mold = {true, path};
 	}
 
+	fp = popen("command -v ld.lld", "r");
+	fgets(str, sizeof(str), fp);
+	statusCode = pclose(fp);
+
+	if (statusCode != 0) {
+		out.lld = {false, ""};
+	} else {
+		string path(str);
+		out.lld = {true, path};
+	}
+
 	return out;
+}
+
+Config parseConfig(const string& path) {
+	Config out;
+	vector<string> lines = split(readFile(path), "\n");
+
+	for (size_t i = 0; i < lines.size(); i++) {
+		smatch configLineMatch;
+
+		if (regex_match(lines[i], configLineMatch, CONFIG_LINE_REGEX)) {
+			string key = configLineMatch[1].str();
+			string value = configLineMatch[2].str();
+
+			if (CMM_FLAGS.contains("--" + key)) {
+				out.defaultFlags.insert({CMM_FLAGS.get("--" + key), value});
+			} else if (CMM_FLAGS.contains("-" + key)) {
+				out.defaultFlags.insert({CMM_FLAGS.get("-" + key), value});
+			} else {
+				throw runtime_error("Unknown config key: " + key);
+			}
+		} else if (regex_match(lines[i], configLineMatch, CONFIG_SCRIPT_REGEX)) {
+			string scriptName = configLineMatch[1].str();
+			Script script;
+
+			for (size_t j = i + 1; j < lines.size(); i = ++j) {
+				smatch scriptLineMatch;
+
+				if (regex_match(lines[j], scriptLineMatch, CONFIG_SCRIPT_LINE_REGEX)) {
+					string key = scriptLineMatch[1].str();
+					string value = scriptLineMatch[2].str();
+
+					if (CMM_FLAGS.contains("--" + key)) {
+						script.defaultFlags.insert({CMM_FLAGS.get("--" + key), value});
+					} else if (CMM_FLAGS.contains("-" + key)) {
+						script.defaultFlags.insert({CMM_FLAGS.get("-" + key), value});
+					} else if (key == "main") {	 // put the main file check here to avoid duplicate checks because it's only 1 line
+						script.mainFile = value;
+					} else if (key == "command") {
+						script.command = value;
+					} else {
+						throw runtime_error("Unknown config key: " + key);
+					}
+				} else {
+					throw runtime_error("Invalid script line: " + lines[j]);
+				}
+			}
+
+			if (script.mainFile == "") {
+				throw runtime_error("Script " + scriptName + " has no main file");
+			} else {
+				out.scripts[scriptName] = script;
+			}
+		}
+	}
+
+	return out;
+}
+
+void mergeConfig(map<Flag, string>& args, const Config& config) {
+	for (const auto& entry : config.defaultFlags) {
+		Flag flag = entry.first;
+		string value = entry.second;
+
+		if (flag.flagType == FlagType::NORMAL) {
+			if (args.count(flag)) {
+				cout << BYEL "Warning: " reset "config flag " BWHT << flag.toString() << BRED " overridden " reset "by command line" << endl;
+			} else {
+				args[flag] = value;
+			}
+		} else if (flag.flagType == FlagType::BOOLEAN && value == "true") {
+			if (!args.count(flag)) {
+				args[flag] = "";
+			}
+		} else {
+			args[flag] += " " + stripWhitespace(value);
+		}
+	}
+}
+
+void mergeScriptConfig(map<Flag, string>& args, const Script& script) {
+	for (const auto& entry : script.defaultFlags) {
+		Flag flag = entry.first;
+		string value = entry.second;
+
+		if (flag.flagType == FlagType::NORMAL) {
+			if (args.count(flag)) {
+				cout << BYEL "Warning: " reset "script flag " BWHT << flag.toString() << BRED " overridden " reset "by command line" << endl;
+			} else {
+				args[flag] = value;
+			}
+		} else if (flag.flagType == FlagType::BOOLEAN && value == "true") {
+			if (!args.count(flag)) {
+				args[flag] = "";
+			}
+		} else {
+			args[flag] += " " + stripWhitespace(value);
+		}
+	}
 }

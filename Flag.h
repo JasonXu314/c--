@@ -13,6 +13,20 @@ struct Flag {
 	set<string> aliases;
 	FlagType flagType;
 
+	string toString() {
+		string out = flag + " (";
+
+		for (auto it = aliases.begin(); it != aliases.end(); it++) {
+			if (it == --aliases.end()) {
+				out += *it + ")";
+			} else {
+				out += *it + ", ";
+			}
+		}
+
+		return out;
+	}
+
 	bool operator==(const Flag& other) const { return flag == other.flag; }
 	bool operator==(const string& other) const { return flag == other || aliases.count(other); }
 

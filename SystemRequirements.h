@@ -15,6 +15,7 @@ struct SystemRequirements {
 	Component gdb;
 	Component valgrind;
 	Component mold;
+	Component lld;
 };
 
 #endif

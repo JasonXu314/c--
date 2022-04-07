@@ -2,13 +2,13 @@
 
 using namespace std;
 
-map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags) {
+map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags, size_t startIdx) {
 	map<Flag, string> out;
 	bool inCollatingFlag = false;
 	string collatingFlagValue;
 	Flag lastFlag;
 
-	for (size_t i = 3; i < argsList.size(); i++) {
+	for (size_t i = startIdx; i < argsList.size(); i++) {
 		string arg = argsList[i], flagValue;
 		bool flagValuePair = false;
 		smatch match;
@@ -29,17 +29,7 @@ map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags
 			Flag flag = flags.get(arg);
 
 			if (out.count(flag)) {
-				string msg = "Duplicate flag: " + flag.flag + " (";
-
-				for (auto it = flag.aliases.begin(); it != flag.aliases.end(); it++) {
-					if (it == --flag.aliases.end()) {
-						msg += *it + ")";
-					} else {
-						msg += *it + ", ";
-					}
-				}
-
-				throw invalid_argument(msg);
+				throw invalid_argument("Unknown flag: " + arg);
 			} else {
 				if (flag.flagType == FlagType::COLLATING && !flagValuePair) {
 					inCollatingFlag = true;
@@ -57,6 +47,22 @@ map<Flag, string> parseArgs(const vector<string>& argsList, const FlagSet& flags
 			lastFlag = flag;
 		} else if (inCollatingFlag) {
 			collatingFlagValue += arg + " ";
+		} else if (arg.substr(0, 2) != "--" && arg.substr(0, 1) == "-") {
+			for (size_t i = 1; i < arg.length(); i++) {
+				if (!flags.contains("-" + arg.substr(i, 1))) {	// use substr because otherwise would be adding chars
+					throw invalid_argument("Unknown flag: -" + arg.substr(i, 1) + " in concatenated flag " + arg);
+				} else {
+					Flag flag = flags.get("-" + arg.substr(i, 1));
+
+					if (flag.flagType != FlagType::BOOLEAN) {
+						throw invalid_argument("Only boolean flags can be concatenated together");
+					} else if (out.count(flag)) {
+						throw invalid_argument("Duplicate flag: " + flag.toString());
+					} else {
+						out.insert({flag, ""});
+					}
+				}
+			}
 		} else {
 			throw invalid_argument("Unknown flag: " + arg);
 		}
@@ -84,24 +90,24 @@ string stripExtension(const string& fileName) {
 
 string stripWhitespace(const string& str) {
 	string out = str;
-	bool firstNonWhitespaceFound = false, lastNonWhitespaceFound = false;
-	size_t firstNonWhitespace = 0, lastNonWhitespace = str.size() - 1;
+	bool firstNonWSFound = false, lastNonWSFound = false;
+	size_t firstNonWS = 0, lastNonWS = str.size() - 1;
 
 	for (size_t i = 0; i < str.size(); i++) {
-		if (!firstNonWhitespaceFound && str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
-			firstNonWhitespace = i;
-			firstNonWhitespaceFound = true;
+		if (!firstNonWSFound && str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
+			firstNonWS = i;
+			firstNonWSFound = true;
 		}
-		if (!lastNonWhitespaceFound && str[str.size() - i - 1] != ' ' && str[str.size() - i - 1] != '\t' && str[str.size() - i - 1] != '\n') {
-			lastNonWhitespace = str.size() - i - 1;
-			lastNonWhitespaceFound = true;
+		if (!lastNonWSFound && str[str.size() - i - 1] != ' ' && str[str.size() - i - 1] != '\t' && str[str.size() - i - 1] != '\n') {
+			lastNonWS = str.size() - i - 1;
+			lastNonWSFound = true;
 		}
-		if (firstNonWhitespaceFound && lastNonWhitespaceFound) {
+		if (firstNonWSFound && lastNonWSFound) {
 			break;
 		}
 	}
 
-	return out.substr(firstNonWhitespace, lastNonWhitespace - firstNonWhitespace + 1);
+	return out.substr(firstNonWS, lastNonWS - firstNonWS + 1);
 }
 
 string stripDirectories(const string& fileName) {
