@@ -43,6 +43,8 @@ const Flag OUTPUT_FLAG = {"--output", {"-o"}, FlagType::NORMAL}, FOLDER_FLAG = {
 const FlagSet CMM_FLAGS = {OUTPUT_FLAG,	   FOLDER_FLAG, ARGS_FLAG,	RAW_FLAGS_FLAG,	  VALGRIND_FLAGS_FLAG,
 						   GDB_FLAGS_FLAG, WATCH_FLAG,	DEBUG_FLAG, IGNORE_MOLD_FLAG, IGNORE_LLD_FLAG};
 
+enum CompileModes { TO_OBJECT, TO_EXECUTABLE };
+
 // Pre: mainFile must be a normalized file name
 SourceSet generateSources(const string& mainPath);
 
@@ -52,17 +54,23 @@ void findHeaders(const string& filePath, FileSet<Header>& headersVisited);
 
 FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<Implementation>& ignore, const map<string, set<string>>& dependencyMap);
 
+string buildCommand(const string& files, const string& outputFolder, const string& outputFile, const string& rawFlags, CompileModes mode, bool mold, bool lld,
+					bool debug = false, bool gcov = false);
+
 // Returns a path to the resulting executable.
-string directCompile(const SourceSet& sources, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false);
+string directCompile(const SourceSet& sources, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false, bool gcov = false);
 
 // Pre: file must be a normalized file name, and bin/.objects directory must exist
-void compileToObject(const string& file, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false);
+void compileToObject(const string& file, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false, bool gcov = false);
 
 // mainFile isn't really used, it's just for determining the output file name if not explicitly set
-string compileObjects(const string& mainFile, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false);
+string compileObjects(const string& mainFile, const map<Flag, string>& args, const SystemRequirements& sys, bool debug = false, bool gcov = false);
 
 SourceDiff reconcileSources(const int fileWatcher, const SourceSet& oldSources, const SourceSet& newSources, const hash<string>& hash,
 							map<int, string>& watchDescriptorToPath, map<string, int>& pathToWatchDescriptor, map<string, size_t>& lastContents);
+
+void runWatchLoop(const string& file, const function<void(const SourceSet&)>& initialCompile,
+				  const function<void(const SourceDiff&, const string&, const SourceSet&)>& onChange);
 
 void runWatchLoop(const string& file, const function<void(const SourceSet&)>& initialCompile,
 				  const function<void(const SourceDiff&, const string&)>& onChange);

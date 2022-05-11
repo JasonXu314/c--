@@ -121,6 +121,17 @@ string stripDirectories(const string& fileName) {
 	return out;
 }
 
+string getParentDirectory(const string& fileName) {
+	string out = fileName;
+	size_t lastSlash = out.find_last_of('/');
+
+	if (lastSlash != string::npos) {
+		out = out.substr(0, lastSlash);
+	}
+
+	return out;
+}
+
 string replace(const string& str, const string& from, const string& to) {
 	string out = str;
 	size_t pos = 0;

@@ -1,0 +1,4 @@
+        -:    0:Source:impl.cpp
+        -:    1:#include "header.h"
+        -:    2:
+    10000:    3:int add(int a, int b) { return a + b; }

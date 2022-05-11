@@ -94,6 +94,8 @@ int main(int argc, char** argv) {
 					debugCommand(mainFile, args, sys);
 				} else if (cmd == "valgrind" || cmd == "v") {
 					valgrindCommand(mainFile, args, sys);
+				} else if (cmd == "gcov" || cmd == "g") {
+					gcovCommand(mainFile, args, sys);
 				} else {
 					cout << "Unknown command: " << cmd << endl;
 				}

@@ -93,7 +93,7 @@ void findHeaders(const string& filePath, FileSet<Header>& headersVisited) {
 
 	while (getline(in, line)) {
 		if (regex_match(line, match, INCLUDE_REGEX)) {
-			string includeFile = match[1];
+			string includeFile = resolvePath(match[1]);
 
 			if (!headersVisited.contains(includeFile)) {
 				findHeaders(includeFile, headersVisited);
@@ -104,46 +104,54 @@ void findHeaders(const string& filePath, FileSet<Header>& headersVisited) {
 	in.close();
 }
 
-string directCompile(const SourceSet& sources, const map<Flag, string>& args, const SystemRequirements& sys, bool debug) {
-	string inputFile = sources.main.path, outputFile = stripExtension(stripDirectories(inputFile)), outputFolder = "bin", rawFlags, sourcesList;
+string buildCommand(const string& files, const string& outputFolder, const string& outputFile, const string& rawFlags, CompileModes mode, bool mold, bool lld,
+					bool debug, bool gcov) {
+	string cmd = "g++ -Wall -W -pedantic-errors ";
 
-	if (debug) {
-		outputFile += "_debug";
+	if (mode == CompileModes::TO_OBJECT) {
+		cmd += "-c ";
 	}
 
-	if (args.count(OUTPUT_FLAG)) {
-		outputFile = args.at(OUTPUT_FLAG);
-	}
-
-	if (args.count(FOLDER_FLAG)) {
-		outputFolder = args.at(FOLDER_FLAG);
-	}
-
-	if (args.count(RAW_FLAGS_FLAG)) {
-		rawFlags = args.at(RAW_FLAGS_FLAG);
-	}
-
-	string cmd = "g++ -Wall -W -pedantic-errors " + string(debug ? "-g" : "-s");
-
-	if (rawFlags.length() != 0) {
-		cmd += " " + rawFlags;
-	}
-
-	if (sys.mold.present && !args.count(IGNORE_MOLD_FLAG)) {
-		if (gccVersionGood()) {
-			cmd += " -fuse-ld=mold";
+	if (!gcov) {
+		if (debug) {
+			cmd += "-g ";
 		} else {
-			cmd += " -B/usr/local/libexec/mold";
+			cmd += "-s ";
 		}
-	} else if (sys.lld.present && !args.count(IGNORE_LLD_FLAG)) {
-		cmd += " -fuse-ld=lld";
+	} else {
+		cmd += "-fprofile-arcs -ftest-coverage ";
 	}
+
+	if (rawFlags.length() > 0) {
+		cmd += rawFlags + " ";
+	}
+
+	if (mold) {
+		if (gccVersionGood()) {
+			cmd += "-fuse-ld=mold ";
+		} else {
+			cmd += "-B/usr/local/libexec/mold ";
+		}
+	} else if (lld) {
+		cmd += "-fuse-ld=lld ";
+	}
+
+	cmd += files + " -o " + outputFolder + "/" + outputFile;
+
+	return cmd;
+}
+
+string directCompile(const SourceSet& sources, const map<Flag, string>& args, const SystemRequirements& sys, bool debug, bool gcov) {
+	string outputFile = args.count(OUTPUT_FLAG) ? args.at(OUTPUT_FLAG) : (stripExtension(stripDirectories(sources.main.path)) + (debug ? "_debug" : "")),
+		   outputFolder = args.count(FOLDER_FLAG) ? args.at(FOLDER_FLAG) : "bin", rawFlags = args.count(RAW_FLAGS_FLAG) ? args.at(RAW_FLAGS_FLAG) : "",
+		   sourcesList;
 
 	for (const Implementation& source : sources.sources) {
 		sourcesList += source.path + " ";
 	}
 
-	cmd += " " + stripWhitespace(sourcesList) + " -o " + outputFolder + "/" + outputFile;
+	string cmd = buildCommand(sourcesList, outputFolder, outputFile, rawFlags, CompileModes::TO_EXECUTABLE, sys.mold.present && !args.count(IGNORE_MOLD_FLAG),
+							  sys.lld.present && !args.count(IGNORE_LLD_FLAG), debug, gcov);
 
 	struct stat dirInfo;
 	if (stat(outputFolder.c_str(), &dirInfo) != 0) {
@@ -164,34 +172,13 @@ string directCompile(const SourceSet& sources, const map<Flag, string>& args, co
 	return "./" + outputFolder + "/" + outputFile;
 }
 
-void compileToObject(const string& file, const map<Flag, string>& args, const SystemRequirements& sys, bool debug) {
-	string outputFile = stripExtension(replace(file, "/", "_")) + ".o", outputFolder = "bin/.objects", rawFlags;
+void compileToObject(const string& file, const map<Flag, string>& args, const SystemRequirements& sys, bool debug, bool gcov) {
+	string outputFile = stripExtension(replace(file, "/", "_")) + ".o",
+		   outputFolder = args.count(FOLDER_FLAG) ? args.at(FOLDER_FLAG) + "/.objects" : "bin/.objects",
+		   rawFlags = args.count(RAW_FLAGS_FLAG) ? args.at(RAW_FLAGS_FLAG) : "";
 
-	if (args.count(FOLDER_FLAG)) {
-		outputFolder = args.at(FOLDER_FLAG);
-	}
-
-	if (args.count(RAW_FLAGS_FLAG)) {
-		rawFlags = args.at(RAW_FLAGS_FLAG);
-	}
-
-	string cmd = "g++ -Wall -W -pedantic-errors -c " + string(debug ? "-g" : "-s");
-
-	if (rawFlags.length() != 0) {
-		cmd += " " + rawFlags;
-	}
-
-	if (sys.mold.present && !args.count(IGNORE_MOLD_FLAG)) {
-		if (gccVersionGood()) {
-			cmd += " -fuse-ld=mold";
-		} else {
-			cmd += " -B/usr/local/libexec/mold";
-		}
-	} else if (sys.lld.present && !args.count(IGNORE_LLD_FLAG)) {
-		cmd += " -fuse-ld=lld";
-	}
-
-	cmd += " " + file + " -o " + outputFolder + "/" + outputFile;
+	string cmd = buildCommand(file, outputFolder, outputFile, rawFlags, CompileModes::TO_OBJECT, sys.mold.present && !args.count(IGNORE_MOLD_FLAG),
+							  sys.lld.present && !args.count(IGNORE_LLD_FLAG), debug, gcov);
 
 	bool statusCode = system(cmd.c_str());
 
@@ -200,42 +187,12 @@ void compileToObject(const string& file, const map<Flag, string>& args, const Sy
 	}
 }
 
-string compileObjects(const string& mainFile, const map<Flag, string>& args, const SystemRequirements& sys, bool debug) {
-	string inputFile = stripDirectories(mainFile), outputFile = stripExtension(inputFile), outputFolder = "bin", rawFlags;
+string compileObjects(const string& mainFile, const map<Flag, string>& args, const SystemRequirements& sys, bool debug, bool gcov) {
+	string outputFile = args.count(OUTPUT_FLAG) ? args.at(OUTPUT_FLAG) : (stripExtension(stripDirectories(mainFile)) + (debug ? "_debug" : "")),
+		   outputFolder = args.count(FOLDER_FLAG) ? args.at(FOLDER_FLAG) : "bin", rawFlags = args.count(RAW_FLAGS_FLAG) ? args.at(RAW_FLAGS_FLAG) : "";
 
-	if (debug) {
-		outputFile += "_debug";
-	}
-
-	if (args.count(OUTPUT_FLAG)) {
-		outputFile = args.at(OUTPUT_FLAG);
-	}
-
-	if (args.count(FOLDER_FLAG)) {
-		outputFolder = args.at(FOLDER_FLAG);
-	}
-
-	if (args.count(RAW_FLAGS_FLAG)) {
-		rawFlags = args.at(RAW_FLAGS_FLAG);
-	}
-
-	string cmd = "g++ -Wall -W -pedantic-errors " + string(debug ? "-g" : "-s");
-
-	if (rawFlags.length() != 0) {
-		cmd += " " + rawFlags;
-	}
-
-	if (sys.mold.present && !args.count(IGNORE_MOLD_FLAG)) {
-		if (gccVersionGood()) {
-			cmd += " -fuse-ld=mold";
-		} else {
-			cmd += " -B/usr/local/libexec/mold";
-		}
-	} else if (sys.lld.present && !args.count(IGNORE_LLD_FLAG)) {
-		cmd += " -fuse-ld=lld";
-	}
-
-	cmd += " " + outputFolder + "/.objects/*.o -o " + outputFolder + "/" + outputFile;
+	string cmd = buildCommand(outputFolder + "/.objects/*.o", outputFolder, outputFile, rawFlags, CompileModes::TO_EXECUTABLE,
+							  sys.mold.present && !args.count(IGNORE_MOLD_FLAG), sys.lld.present && !args.count(IGNORE_LLD_FLAG), debug, gcov);
 
 	bool statusCode = system(cmd.c_str());
 
@@ -292,6 +249,96 @@ SourceDiff reconcileSources(const int fileWatcher, const SourceSet& oldSources, 
 /** If you're reading this, PLEASE NEVER EVER ACTUALLY DO THIS UNLESS YOU REALLY REALLY KNOW WHAT YOU'RE DOING */
 namespace GLOBAL_SIGINT_FN {
 function<void()> fn = []() {};
+}
+
+void runWatchLoop(const string& file, const function<void(const SourceSet&)>& initialCompile,
+				  const function<void(const SourceDiff&, const string&, const SourceSet&)>& onChange) {
+	int fileWatcher = inotify_init();
+	map<int, string> watchDescriptorToPath;
+	map<string, int> pathToWatchDescriptor;
+	map<string, size_t> lastContents;
+	hash<string> hash;
+	SourceSet sources = generateSources(file);
+	bool continueWatch = true;
+
+	for (const Implementation& source : sources.sources) {
+		int watchDescriptor = inotify_add_watch(fileWatcher, source.path.c_str(), IN_MODIFY);
+		watchDescriptorToPath.insert({watchDescriptor, source.path});
+		pathToWatchDescriptor.insert({source.path, watchDescriptor});
+		lastContents.insert({source.path, hash(stripWhitespace(readFile(source.path)))});
+	}
+
+	for (const Header& header : sources.headers) {
+		int watchDescriptor = inotify_add_watch(fileWatcher, header.path.c_str(), IN_MODIFY);
+		watchDescriptorToPath.insert({watchDescriptor, header.path});
+		pathToWatchDescriptor.insert({header.path, watchDescriptor});
+		lastContents.insert({header.path, hash(stripWhitespace(readFile(header.path)))});
+	}
+
+	initialCompile(sources);
+
+	thread watchThread([&continueWatch, &sources, &fileWatcher, &watchDescriptorToPath, &pathToWatchDescriptor, &hash, &lastContents, &onChange, &file]() {
+		inotify_event event;
+		SourceDiff diff;
+		bool deletePhase = true;
+
+		while (continueWatch) {
+			int bytesRead = read(fileWatcher, &event, sizeof(inotify_event) + NAME_MAX + 1);
+
+			if (bytesRead != -1 && (event.mask & IN_MODIFY)) {
+				if (!deletePhase) {
+					string changedFile = watchDescriptorToPath[event.wd], fileContents = stripWhitespace(readFile(changedFile));
+					size_t hashedContents = hash(fileContents);
+
+					if (lastContents[changedFile] != hashedContents) {
+						system("clear");
+						cout << BWHT "Change to " GRN << changedFile << BWHT " detected" reset ", re-compiling..." << endl;
+
+						SourceSet newSources = generateSources(file);
+						diff = reconcileSources(fileWatcher, sources, newSources, hash, watchDescriptorToPath, pathToWatchDescriptor, lastContents);
+						sources = newSources;
+
+						onChange(diff, changedFile, sources);
+
+						lastContents[changedFile] = hashedContents;
+					} else {
+						cout << RED "No effective change" reset " to " BWHT << changedFile << reset ", not compiling" << endl;
+					}
+				}
+
+				deletePhase = !deletePhase;
+			} else if (bytesRead == -1) {
+				continueWatch = false;
+			}
+		}
+	});
+
+	GLOBAL_SIGINT_FN::fn = [&continueWatch]() { continueWatch = false; };
+
+	signal(SIGINT, [](int) { GLOBAL_SIGINT_FN::fn(); });
+
+	while (continueWatch) {
+		string input;
+
+		cin >> input;
+
+		if (input == "quit" || input == "q") {
+			continueWatch = false;
+		}
+	}
+
+	pthread_kill(watchThread.native_handle(), SIGINT);
+	watchThread.join();
+
+	cout << BWHT "Interrupt signal received, cleaning up..." reset << endl;
+
+	for (const Implementation& source : sources.sources) {
+		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[source.path]);
+	}
+
+	for (const Header& header : sources.headers) {
+		inotify_rm_watch(fileWatcher, pathToWatchDescriptor[header.path]);
+	}
 }
 
 void runWatchLoop(const string& file, const function<void(const SourceSet&)>& initialCompile,

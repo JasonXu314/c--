@@ -7,8 +7,10 @@
 #include <vector>
 
 #include "Flag.h"
+#include "SourceFiles.h"
 #include "SystemRequirements.h"
 #include "c--_utils.h"
+#include "utils.h"
 
 using namespace std;
 
@@ -21,5 +23,7 @@ void runCommand(const string& file, const map<Flag, string>& args, const SystemR
 void debugCommand(const string& file, const map<Flag, string>& args, const SystemRequirements& sys);
 
 void valgrindCommand(const string& file, const map<Flag, string>& args, const SystemRequirements& sys);
+
+void gcovCommand(const string& file, const map<Flag, string>& args, const SystemRequirements& sys);
 
 #endif

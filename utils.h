@@ -30,6 +30,8 @@ string stripWhitespace(const string& str);
 
 string stripDirectories(const string& fileName);
 
+string getParentDirectory(const string& fileName);
+
 string replace(const string& str, const string& from, const string& to);
 
 string readFile(const string& path);
