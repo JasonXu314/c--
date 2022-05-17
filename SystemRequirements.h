@@ -16,6 +16,7 @@ struct SystemRequirements {
 	Component valgrind;
 	Component mold;
 	Component lld;
+	Component gcov;
 };
 
 #endif

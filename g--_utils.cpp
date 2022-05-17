@@ -1,4 +1,4 @@
-#include "c--_utils.h"
+#include "g--_utils.h"
 
 #include "SourceFiles.h"
 #include "utils.h"
@@ -507,6 +507,17 @@ SystemRequirements findSystemRequirements() {
 	} else {
 		string path(str);
 		out.lld = {true, path};
+	}
+
+	fp = popen("command -v gcov", "r");
+	fgets(str, sizeof(str), fp);
+	statusCode = pclose(fp);
+
+	if (statusCode != 0) {
+		out.gcov = {false, ""};
+	} else {
+		string path(str);
+		out.gcov = {true, path};
 	}
 
 	return out;

@@ -2,5 +2,5 @@ raw-flags: -pthread
 
 build:
 	command: compile
-	main: c--.cpp
+	main: g--.cpp
 	raw-flags: -pthread

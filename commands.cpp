@@ -292,6 +292,10 @@ void valgrindCommand(const string& file, const map<Flag, string>& args, const Sy
 }
 
 void gcovCommand(const string& file, const map<Flag, string>& args, const SystemRequirements& sys) {
+	if (!sys.gcov.present) {
+		throw runtime_error(BHRED "Gcov not found" reset);
+	}
+
 	string mainFile = normalizeFileName(file), outputFolder = args.count(FOLDER_FLAG) ? args.at(FOLDER_FLAG) : "bin";
 
 	if (args.count(WATCH_FLAG)) {

@@ -16,10 +16,10 @@
 #include <thread>
 #include <vector>
 
-#include "C--Config.h"
-#include "C--Script.h"
+#include "Config.h"
 #include "Flag.h"
 #include "FlagSet.h"
+#include "Script.h"
 #include "SourceDiff.h"
 #include "SourceFiles.h"
 #include "SourceSet.h"

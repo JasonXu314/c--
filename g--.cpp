@@ -33,21 +33,21 @@ int main(int argc, char** argv) {
 			Script script;
 
 			struct stat _;
-			if (stat(".c--rc.yml", &_) == 0) {
-				cout << BGRN "Using config file" BWHT " .c--rc.yml" reset << endl;
-				config = parseConfig(".c--rc.yml");
+			if (stat(".g--rc.yml", &_) == 0) {
+				cout << BGRN "Using config file" BWHT " .g--rc.yml" reset << endl;
+				config = parseConfig(".g--rc.yml");
 				hasConfig = true;
-			} else if (stat(".c--rc", &_) == 0) {
-				cout << BGRN "Using config file" BWHT " .c--rc" reset << endl;
-				config = parseConfig(".c--rc");
+			} else if (stat(".g--rc", &_) == 0) {
+				cout << BGRN "Using config file" BWHT " .g--rc" reset << endl;
+				config = parseConfig(".g--rc");
 				hasConfig = true;
-			} else if (stat(".cmmrc.yml", &_) == 0) {
-				cout << BGRN "Using config file" BWHT " .cmmrc.yml" reset << endl;
-				config = parseConfig(".cmmrc.yml");
+			} else if (stat(".gmmrc.yml", &_) == 0) {
+				cout << BGRN "Using config file" BWHT " .gmmrc.yml" reset << endl;
+				config = parseConfig(".gmmrc.yml");
 				hasConfig = true;
-			} else if (stat(".cmmrc", &_) == 0) {
-				cout << BGRN "Using config file" BWHT " .cmmrc" reset << endl;
-				config = parseConfig(".cmmrc");
+			} else if (stat(".gmmrc", &_) == 0) {
+				cout << BGRN "Using config file" BWHT " .gmmrc" reset << endl;
+				config = parseConfig(".gmmrc");
 				hasConfig = true;
 			}
 
