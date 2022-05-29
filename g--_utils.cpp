@@ -5,15 +5,13 @@
 
 SourceSet generateSources(const string& mainPath) {
 	SourceSet out = {{stripDirectories(mainPath), mainPath}, {}, {}};
-	fstream in(mainPath);
-	string line;
-	map<string, set<string>> dependencyMap = generateDependencyMap();
+	map<string, FileSet<Header>> dependencyMap = generateDependencyMap();
 
 	out.sources.insert(out.main);
 
-	for (const string& header : dependencyMap[mainPath]) {
+	for (const Header& header : dependencyMap[mainPath]) {
 		if (!out.headers.contains(header)) {
-			findHeaders(header, out.headers);
+			findHeaders(header.path, out.headers, ".");
 		}
 	}
 
@@ -25,13 +23,11 @@ SourceSet generateSources(const string& mainPath) {
 		}
 	}
 
-	in.close();
-
 	return out;
 }
 
-map<string, set<string>> generateDependencyMap() {
-	map<string, set<string>> out;
+map<string, FileSet<Header>> generateDependencyMap() {
+	map<string, FileSet<Header>> out;
 	set<string> files = readDir(".");
 
 	for (const string& file : files) {
@@ -46,8 +42,11 @@ map<string, set<string>> generateDependencyMap() {
 				while (getline(in, line)) {
 					if (regex_match(line, includeMatch, INCLUDE_REGEX)) {
 						string includeFile = resolvePath(foldersMatch[1].str() + includeMatch[1].str());
+						FileSet<Header> dependencies;
 
-						out[file].insert(includeFile);
+						findHeaders(includeFile, dependencies, ".");
+
+						out.insert({file, dependencies});
 					}
 				}
 
@@ -59,16 +58,16 @@ map<string, set<string>> generateDependencyMap() {
 	return out;
 }
 
-FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<Implementation>& ignore, const map<string, set<string>>& dependencyMap) {
+FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<Implementation>& ignore, const map<string, FileSet<Header>>& dependencyMap) {
 	FileSet<Implementation> out;
 
 	for (const auto& entry : dependencyMap) {
 		string cppFile = entry.first;
-		set<string> headers = entry.second;
+		FileSet<Header> headers = entry.second;
 
 		if (ignore.contains(cppFile)) {
 			continue;
-		} else if (headers.count(headerFile.path)) {
+		} else if (headers.contains(headerFile.path)) {
 			string fileContents = readFile(cppFile);
 
 			if (!regex_search(fileContents, MAIN_REGEX) && !regex_search(fileContents, CATCH_REGEX)) {
@@ -80,11 +79,11 @@ FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<I
 	return out;
 }
 
-void findHeaders(const string& filePath, FileSet<Header>& headersVisited) {
-	if (headersVisited.contains(filePath)) {
+void findHeaders(const string& filePath, FileSet<Header>& headersVisited, const string& prevPath) {
+	if (headersVisited.contains(resolvePath(prevPath + "/" + filePath))) {
 		return;
 	} else {
-		headersVisited.insert({stripDirectories(filePath), filePath});
+		headersVisited.insert({stripDirectories(filePath), resolvePath(prevPath + "/" + filePath)});
 	}
 
 	fstream in(filePath);
@@ -96,7 +95,7 @@ void findHeaders(const string& filePath, FileSet<Header>& headersVisited) {
 			string includeFile = resolvePath(match[1]);
 
 			if (!headersVisited.contains(includeFile)) {
-				findHeaders(includeFile, headersVisited);
+				findHeaders(includeFile, headersVisited, getParentDirectory(filePath));
 			}
 		}
 	}
@@ -563,8 +562,10 @@ Config parseConfig(const string& path) {
 					} else {
 						throw runtime_error("Unknown config key: " + key);
 					}
+				} else if (lines[j].empty()) {
+					break;
 				} else {
-					throw runtime_error("Invalid script line: " + lines[j]);
+					throw runtime_error("Invalid script line: " + lines[j] + " (line " + to_string(j + 1) + ")");
 				}
 			}
 

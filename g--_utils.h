@@ -48,11 +48,11 @@ enum CompileModes { TO_OBJECT, TO_EXECUTABLE };
 // Pre: mainFile must be a normalized file name
 SourceSet generateSources(const string& mainPath);
 
-map<string, set<string>> generateDependencyMap();
+map<string, FileSet<Header>> generateDependencyMap();
 
-void findHeaders(const string& filePath, FileSet<Header>& headersVisited);
+void findHeaders(const string& filePath, FileSet<Header>& headersVisited, const string& prevPath);
 
-FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<Implementation>& ignore, const map<string, set<string>>& dependencyMap);
+FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<Implementation>& ignore, const map<string, FileSet<Header>>& dependencyMap);
 
 string buildCommand(const string& files, const string& outputFolder, const string& outputFile, const string& rawFlags, CompileModes mode, bool mold, bool lld,
 					bool debug = false, bool gcov = false);
