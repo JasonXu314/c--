@@ -1,8 +1,5 @@
 #include "g--_utils.h"
 
-#include "SourceFiles.h"
-#include "utils.h"
-
 SourceSet generateSources(const string& mainPath) {
 	SourceSet out = {{stripDirectories(mainPath), mainPath}, {}, {}};
 	map<string, FileSet<Header>> dependencyMap = generateDependencyMap();
@@ -11,7 +8,7 @@ SourceSet generateSources(const string& mainPath) {
 
 	for (const Header& header : dependencyMap[mainPath]) {
 		if (!out.headers.contains(header)) {
-			findHeaders(header.path, out.headers, ".");
+			findHeaders(header.path, out.headers);
 		}
 	}
 
@@ -38,19 +35,18 @@ map<string, FileSet<Header>> generateDependencyMap() {
 				fstream in(file);
 				string line;
 				smatch includeMatch;
+				FileSet<Header> dependencies;
 
 				while (getline(in, line)) {
 					if (regex_match(line, includeMatch, INCLUDE_REGEX)) {
 						string includeFile = resolvePath(foldersMatch[1].str() + includeMatch[1].str());
-						FileSet<Header> dependencies;
 
-						findHeaders(includeFile, dependencies, ".");
-
-						out.insert({file, dependencies});
+						findHeaders(includeFile, dependencies);
 					}
 				}
 
 				in.close();
+				out.insert({file, dependencies});
 			}
 		}
 	}
@@ -79,11 +75,11 @@ FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<I
 	return out;
 }
 
-void findHeaders(const string& filePath, FileSet<Header>& headersVisited, const string& prevPath) {
-	if (headersVisited.contains(resolvePath(prevPath + "/" + filePath))) {
+void findHeaders(const string& filePath, FileSet<Header>& headersVisited) {
+	if (headersVisited.contains(filePath)) {
 		return;
 	} else {
-		headersVisited.insert({stripDirectories(filePath), resolvePath(prevPath + "/" + filePath)});
+		headersVisited.insert({stripDirectories(filePath), filePath});
 	}
 
 	fstream in(filePath);
@@ -92,10 +88,10 @@ void findHeaders(const string& filePath, FileSet<Header>& headersVisited, const 
 
 	while (getline(in, line)) {
 		if (regex_match(line, match, INCLUDE_REGEX)) {
-			string includeFile = resolvePath(match[1]);
+			string includeFile = resolvePath(getParentDirectory(filePath) + "/" + match[1].str());
 
 			if (!headersVisited.contains(includeFile)) {
-				findHeaders(includeFile, headersVisited, getParentDirectory(filePath));
+				findHeaders(includeFile, headersVisited);
 			}
 		}
 	}
@@ -103,11 +99,11 @@ void findHeaders(const string& filePath, FileSet<Header>& headersVisited, const 
 	in.close();
 }
 
-string buildCommand(const string& files, const string& outputFolder, const string& outputFile, const string& rawFlags, CompileModes mode, bool mold, bool lld,
+string buildCommand(const string& files, const string& outputFolder, const string& outputFile, const string& rawFlags, CompileMode mode, bool mold, bool lld,
 					bool debug, bool gcov) {
 	string cmd = "g++ -Wall -W -pedantic-errors ";
 
-	if (mode == CompileModes::TO_OBJECT) {
+	if (mode == CompileMode::TO_OBJECT) {
 		cmd += "-c ";
 	}
 
@@ -123,6 +119,18 @@ string buildCommand(const string& files, const string& outputFolder, const strin
 
 	if (rawFlags.length() > 0) {
 		cmd += rawFlags + " ";
+	}
+
+	bool stdSet = false;
+	for (size_t i = 0; i < rawFlags.length() - 5; i++) {
+		if (rawFlags.substr(i, 5) == "-std=") {
+			stdSet = true;
+			break;
+		}
+	}
+
+	if (!stdSet) {
+		cmd += "-std=c++20 ";
 	}
 
 	if (mold) {
@@ -149,7 +157,7 @@ string directCompile(const SourceSet& sources, const map<Flag, string>& args, co
 		sourcesList += source.path + " ";
 	}
 
-	string cmd = buildCommand(sourcesList, outputFolder, outputFile, rawFlags, CompileModes::TO_EXECUTABLE, sys.mold.present && !args.count(IGNORE_MOLD_FLAG),
+	string cmd = buildCommand(sourcesList, outputFolder, outputFile, rawFlags, CompileMode::TO_EXECUTABLE, sys.mold.present && !args.count(IGNORE_MOLD_FLAG),
 							  sys.lld.present && !args.count(IGNORE_LLD_FLAG), debug, gcov);
 
 	struct stat dirInfo;
@@ -176,7 +184,7 @@ void compileToObject(const string& file, const map<Flag, string>& args, const Sy
 		   outputFolder = args.count(FOLDER_FLAG) ? args.at(FOLDER_FLAG) + "/.objects" : "bin/.objects",
 		   rawFlags = args.count(RAW_FLAGS_FLAG) ? args.at(RAW_FLAGS_FLAG) : "";
 
-	string cmd = buildCommand(file, outputFolder, outputFile, rawFlags, CompileModes::TO_OBJECT, sys.mold.present && !args.count(IGNORE_MOLD_FLAG),
+	string cmd = buildCommand(file, outputFolder, outputFile, rawFlags, CompileMode::TO_OBJECT, sys.mold.present && !args.count(IGNORE_MOLD_FLAG),
 							  sys.lld.present && !args.count(IGNORE_LLD_FLAG), debug, gcov);
 
 	bool statusCode = system(cmd.c_str());
@@ -190,7 +198,7 @@ string compileObjects(const string& mainFile, const map<Flag, string>& args, con
 	string outputFile = args.count(OUTPUT_FLAG) ? args.at(OUTPUT_FLAG) : (stripExtension(stripDirectories(mainFile)) + (debug ? "_debug" : "")),
 		   outputFolder = args.count(FOLDER_FLAG) ? args.at(FOLDER_FLAG) : "bin", rawFlags = args.count(RAW_FLAGS_FLAG) ? args.at(RAW_FLAGS_FLAG) : "";
 
-	string cmd = buildCommand(outputFolder + "/.objects/*.o", outputFolder, outputFile, rawFlags, CompileModes::TO_EXECUTABLE,
+	string cmd = buildCommand(outputFolder + "/.objects/*.o", outputFolder, outputFile, rawFlags, CompileMode::TO_EXECUTABLE,
 							  sys.mold.present && !args.count(IGNORE_MOLD_FLAG), sys.lld.present && !args.count(IGNORE_LLD_FLAG), debug, gcov);
 
 	bool statusCode = system(cmd.c_str());

@@ -43,18 +43,18 @@ const Flag OUTPUT_FLAG = {"--output", {"-o"}, FlagType::NORMAL}, FOLDER_FLAG = {
 const FlagSet CMM_FLAGS = {OUTPUT_FLAG,	   FOLDER_FLAG, ARGS_FLAG,	RAW_FLAGS_FLAG,	  VALGRIND_FLAGS_FLAG,
 						   GDB_FLAGS_FLAG, WATCH_FLAG,	DEBUG_FLAG, IGNORE_MOLD_FLAG, IGNORE_LLD_FLAG};
 
-enum CompileModes { TO_OBJECT, TO_EXECUTABLE };
+enum CompileMode { TO_OBJECT, TO_EXECUTABLE };
 
 // Pre: mainFile must be a normalized file name
 SourceSet generateSources(const string& mainPath);
 
 map<string, FileSet<Header>> generateDependencyMap();
 
-void findHeaders(const string& filePath, FileSet<Header>& headersVisited, const string& prevPath);
+void findHeaders(const string& filePath, FileSet<Header>& headersVisited);
 
 FileSet<Implementation> findDependents(const Header& headerFile, const FileSet<Implementation>& ignore, const map<string, FileSet<Header>>& dependencyMap);
 
-string buildCommand(const string& files, const string& outputFolder, const string& outputFile, const string& rawFlags, CompileModes mode, bool mold, bool lld,
+string buildCommand(const string& files, const string& outputFolder, const string& outputFile, const string& rawFlags, CompileMode mode, bool mold, bool lld,
 					bool debug = false, bool gcov = false);
 
 // Returns a path to the resulting executable.

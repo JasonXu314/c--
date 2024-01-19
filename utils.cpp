@@ -127,6 +127,8 @@ string getParentDirectory(const string& fileName) {
 
 	if (lastSlash != string::npos) {
 		out = out.substr(0, lastSlash);
+	} else {
+		out = ".";
 	}
 
 	return out;
@@ -209,7 +211,7 @@ string resolvePath(const string& path) {
 	for (const string& dir : split(path, "/")) {
 		if (dir == "..") {
 			pathStack.pop();
-		} else if (dir != ".") {
+		} else if (dir != "." && dir != "") {
 			pathStack.push(dir);
 		}
 	}
@@ -221,5 +223,5 @@ string resolvePath(const string& path) {
 		pathStack.pop();
 	}
 
-	return out.substr(1);
+	return out.length() <= 1 ? "." : out.substr(1);
 }
