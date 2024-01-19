@@ -122,7 +122,7 @@ string buildCommand(const string& files, const string& outputFolder, const strin
 	}
 
 	bool stdSet = false;
-	for (size_t i = 0; i < rawFlags.length() - 5; i++) {
+	for (size_t i = 0; i + 5 < rawFlags.length(); i++) {
 		if (rawFlags.substr(i, 5) == "-std=") {
 			stdSet = true;
 			break;
